@@ -23,7 +23,9 @@ export default function Login({ onSignedIn }: { onSignedIn: () => void }) {
   }
 
   return (
+    <div className="login-wrap">
     <form className="login stack" onSubmit={submit}>
+      <div><img className="login-logo" src="/favicon.svg" alt="" /></div>
       <h1>Fit Tracker</h1>
       <p className="muted">Enter your password to continue.</p>
       <ErrorBanner error={error} />
@@ -40,5 +42,6 @@ export default function Login({ onSignedIn }: { onSignedIn: () => void }) {
         {busy ? <Spinner /> : 'Sign in'}
       </button>
     </form>
+    </div>
   );
 }

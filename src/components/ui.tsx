@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
 export const Spinner = () => <span className="spinner" role="status" aria-label="Loading" />;
@@ -20,14 +20,16 @@ export function Stat({
   value,
   sub,
   tone,
+  macro,
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
   tone?: 'good' | 'bad' | 'warn';
+  macro?: 'p' | 'c' | 'f';
 }) {
   return (
-    <div className="stat">
+    <div className={`stat ${macro ? `macro-${macro}` : ''}`}>
       <div className="label">{label}</div>
       <div className={`value ${tone ?? ''}`}>{value}</div>
       {sub && <div className="sub">{sub}</div>}
@@ -40,6 +42,44 @@ export function Progress({ value, max }: { value: number; max: number }) {
   return (
     <div className={`progress ${value > max ? 'over' : ''}`} role="progressbar" aria-valuenow={Math.round(value)} aria-valuemax={Math.round(max)}>
       <div style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+/** Circular progress; animates from empty on mount. */
+export function Ring({ value, max, size = 128, stroke = 12, children }: { value: number; max: number; size?: number; stroke?: number; children?: ReactNode }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = max > 0 ? Math.min(1, value / max) : 0;
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(pct));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
+  const over = value > max;
+  const done = !over && max > 0 && value / max >= 0.9;
+  return (
+    <div
+      className={`ring ${over ? 'over' : ''} ${done ? 'done' : ''}`}
+      style={{ width: size, height: size }}
+      role="progressbar"
+      aria-valuenow={Math.round(value)}
+      aria-valuemax={Math.round(max)}
+    >
+      <svg viewBox={`0 0 ${size} ${size}`} aria-hidden>
+        <circle className="ring-track" cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} />
+        <circle
+          className="ring-fill"
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          strokeWidth={stroke}
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - shown)}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <div className="ring-center">{children}</div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/useApp';
 import { useMeals } from '../lib/queries';
-import { Loading, ErrorBanner, Progress, Stat } from '../components/ui';
+import { Loading, ErrorBanner, Ring, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
 import { sumNutrients, weightChangeKg } from '../../shared/calc';
 import { fmtDay, num, signed } from '../lib/format';
@@ -40,25 +40,24 @@ export default function Today() {
 
       {!latest && <div className="banner warn">Log your weight below to unlock your calorie target.</div>}
 
-      <section className="card">
+      <section className="hero">
         {target ? (
           <>
-            <div className="row between">
-              <h2>Calories</h2>
-              <span className="muted small">target {num(target.target)} kcal</span>
-            </div>
-            <div className="row between" style={{ alignItems: 'baseline' }}>
-              <div>
-                <span style={{ fontSize: '2rem', fontWeight: 800 }}>{num(consumed)}</span>
-                <span className="muted"> eaten</span>
+            <div className="hero-main">
+              <div className="hero-left">
+                <h2>Calories</h2>
+                <div className={`hero-big ${remaining! < 0 ? 'over' : ''}`}>
+                  {remaining! >= 0 ? `${num(remaining!)} left` : `${num(-remaining!)} over`}
+                </div>
+                <div className="hero-sub">target {num(target.target)} kcal</div>
               </div>
-              <div className={remaining! < 0 ? 'bad' : 'good'} style={{ fontWeight: 700 }}>
-                {remaining! >= 0 ? `${num(remaining!)} left` : `${num(-remaining!)} over`}
-              </div>
+              <Ring value={consumed} max={target.target}>
+                <b>{num(consumed)}</b>
+                <span>eaten</span>
+              </Ring>
             </div>
-            <Progress value={consumed} max={target.target} />
             {consumed > 0 && balance !== null && (
-              <p className="muted small mt">
+              <p className="hero-note">
                 {balance <= 0 ? `${num(-balance)} kcal under` : `${num(balance)} kcal over`} your maintenance of {num(target.tdee)} kcal →{' '}
                 <b className={balance <= 0 ? 'good' : 'bad'}>≈ {signed(weightChangeKg(consumed, target.tdee), 2)} kg</b> body weight if every day were like today.
               </p>
@@ -70,15 +69,16 @@ export default function Today() {
         ) : (
           <>
             <h2>Calories eaten</h2>
-            <div style={{ fontSize: '2rem', fontWeight: 800 }}>{num(consumed)} <span className="muted" style={{ fontSize: '1rem' }}>kcal</span></div>
+            <div className="hero-big">{num(consumed)} <span className="muted" style={{ fontSize: '1rem', fontWeight: 600 }}>kcal</span></div>
           </>
         )}
-        <div className="grid3 mt">
-          <Stat label="Protein" value={`${num(totals.protein)} g`} />
-          <Stat label="Carbs" value={`${num(totals.carbs)} g`} />
-          <Stat label="Fat" value={`${num(totals.fat)} g`} />
-        </div>
       </section>
+
+      <div className="grid3">
+        <Stat macro="p" label="Protein" value={`${num(totals.protein)} g`} />
+        <Stat macro="c" label="Carbs" value={`${num(totals.carbs)} g`} />
+        <Stat macro="f" label="Fat" value={`${num(totals.fat)} g`} />
+      </div>
 
       <Link to={`/meals/new?date=${today}`} className="btn block">＋ Add a meal</Link>
 

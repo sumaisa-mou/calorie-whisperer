@@ -214,9 +214,9 @@ export default function Charts() {
             <div style={{ width: `${pct(kcalFrom.f)}%`, background: '#ec4899' }} />
           </div>
           <div className="grid3 mt">
-            <Stat label="Protein" value={`${num(avg.p)} g`} sub={`${pct(kcalFrom.p)}% of kcal`} />
-            <Stat label="Carbs" value={`${num(avg.c)} g`} sub={`${pct(kcalFrom.c)}% of kcal`} />
-            <Stat label="Fat" value={`${num(avg.f)} g`} sub={`${pct(kcalFrom.f)}% of kcal`} />
+            <Stat macro="p" label="Protein" value={`${num(avg.p)} g`} sub={`${pct(kcalFrom.p)}% of kcal`} />
+            <Stat macro="c" label="Carbs" value={`${num(avg.c)} g`} sub={`${pct(kcalFrom.c)}% of kcal`} />
+            <Stat macro="f" label="Fat" value={`${num(avg.f)} g`} sub={`${pct(kcalFrom.f)}% of kcal`} />
           </div>
         </section>
       )}

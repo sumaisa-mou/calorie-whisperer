@@ -11,7 +11,7 @@ const TYPE_LABEL = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', s
 
 function MealCard({ meal, onDelete, busy }: { meal: Meal; onDelete: () => void; busy: boolean }) {
   return (
-    <article className="card">
+    <article className={`card meal meal-${meal.mealType}`}>
       <div className="row between">
         <div>
           <b>{meal.time}</b> <span className="chip muted">{TYPE_LABEL[meal.mealType]}</span>
@@ -77,9 +77,9 @@ export default function Meals() {
         </div>
         {target && <div style={{ marginTop: 8 }}><Progress value={totals.calories} max={target.target} /></div>}
         <div className="grid3 mt">
-          <Stat label="Protein" value={`${num(totals.protein)} g`} />
-          <Stat label="Carbs" value={`${num(totals.carbs)} g`} />
-          <Stat label="Fat" value={`${num(totals.fat)} g`} />
+          <Stat macro="p" label="Protein" value={`${num(totals.protein)} g`} />
+          <Stat macro="c" label="Carbs" value={`${num(totals.carbs)} g`} />
+          <Stat macro="f" label="Fat" value={`${num(totals.fat)} g`} />
         </div>
       </section>
 
