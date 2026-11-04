@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/useApp';
 import { useDeleteMeal, useMeals, useReviewDay, useReviews } from '../lib/queries';
 import { ErrorBanner, Loading, Progress, Stat } from '../components/ui';
-import { sumNutrients } from '../../shared/calc';
+import { proteinTarget, sumNutrients } from '../../shared/calc';
 import { addDays, isDateStr } from '../../shared/dates';
 import { fmtDay, num } from '../lib/format';
 import type { DayReview, Meal, MealReview, MealVerdict } from '../../shared/types';
@@ -62,7 +62,7 @@ function MealCard({ meal, tag, onDelete, busy }: { meal: Meal; tag: MealReview |
 }
 
 export default function Meals() {
-  const { loading, error, today, target } = useApp();
+  const { loading, error, today, target, latest } = useApp();
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const q = params.get('date');
@@ -114,7 +114,7 @@ export default function Meals() {
         </div>
         {target && <div style={{ marginTop: 8 }}><Progress value={totals.calories} max={target.target} /></div>}
         <div className="grid3 mt">
-          <Stat macro="p" label="Protein" value={`${num(totals.protein)} g`} />
+          <Stat macro="p" label="Protein" value={`${num(totals.protein)} g`} sub={latest ? `of ${proteinTarget(latest.kg)} g` : undefined} bar={latest ? totals.protein / proteinTarget(latest.kg) : undefined} />
           <Stat macro="c" label="Carbs" value={`${num(totals.carbs)} g`} />
           <Stat macro="f" label="Fat" value={`${num(totals.fat)} g`} />
         </div>

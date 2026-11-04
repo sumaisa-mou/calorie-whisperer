@@ -68,6 +68,10 @@ const SCHEMA = [
      created_at TEXT NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts (date, time)`,
+  `CREATE TABLE IF NOT EXISTS settings (
+     key TEXT PRIMARY KEY,
+     value TEXT NOT NULL
+   )`,
   `CREATE TABLE IF NOT EXISTS day_reviews (
      date TEXT PRIMARY KEY,
      data TEXT NOT NULL,

@@ -1,4 +1,4 @@
-import type { GymItem } from '../../shared/workout';
+import type { GymItem, PlanExercise } from '../../shared/workout';
 
 const KEY = 'ft_live_workout';
 
@@ -11,6 +11,8 @@ export type Live = {
   pausedMs: number;
   /** when the current pause began, or null while running */
   pausedAt: number | null;
+  /** today's AI plan, if the session was started from one */
+  plan?: PlanExercise[];
 };
 
 /** Training time: wall-clock since start, minus every pause. Frozen while paused. */

@@ -125,7 +125,6 @@ b { font-weight: 700; }
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px;
   box-shadow: var(--shadow);
 }
-.card + .card, .stack > .card { margin-top: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; }
 .stat {
@@ -247,6 +246,27 @@ label { display: block; font-size: .78rem; font-weight: 700; color: var(--muted)
 .estimate { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 14px 16px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--card)), color-mix(in srgb, var(--accent-2) 8%, var(--card))); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
 .estimate-big { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
 .right { text-align: right; }
+
+.stack > .stat-note { margin-top: .5rem; padding: 0 4px; line-height: 1.45; }
+.stat { display: flex; flex-direction: column; }
+.stat-bar { height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--m, var(--accent)) 18%, var(--border)); margin-top: 6px; overflow: hidden; }
+.stat-bar > div { height: 100%; border-radius: 99px; background: var(--m, var(--accent)); transition: width .8s cubic-bezier(.2, .8, .2, 1); }
+.stat[class*='macro-']::after { display: none; }
+.checkin li { margin: .35rem 0; }
+
+.plan-card { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.plan-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.plan-head h2 { margin: 0; flex: 1; min-width: 0; }
+.plan-head button { flex: none; white-space: nowrap; }
+.plan-list { list-style: none; margin: 0; padding: 0; }
+.plan-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: .75rem; padding: 11px 0; border-top: 1px solid var(--border); }
+.plan-list li:first-child { border-top: 0; }
+.plan-ex { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.plan-list .chip { margin-top: 2px; }
+.plan-foot { margin: 0; line-height: 1.5; }
+.plan-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; text-align: left; background: var(--card); color: var(--text); border: 1.5px solid var(--border); box-shadow: none; padding: 11px 14px; border-radius: 16px; }
+.plan-row.on { border-color: var(--accent); background: var(--accent-soft); }
+.plan-row.done { opacity: .65; }
 
 /* ---- AI day review tags */
 .tag { display: inline-block; margin-left: .4rem; font-size: .7rem; font-weight: 800; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }

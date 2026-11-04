@@ -68,6 +68,7 @@ export default function LiveWorkout() {
 
   const current = live.current;
   const currentSets = current ? live.sets.filter((s) => s.name === current.name).length : 0;
+  const planItem = current ? live.plan?.find((p) => p.name === current.name) : undefined;
   const pause = () => setLive((l) => (l.pausedAt ? l : { ...l, pausedAt: Date.now() }));
   const resume = () => setLive((l) => (l.pausedAt ? { ...l, pausedMs: l.pausedMs + (Date.now() - l.pausedAt), pausedAt: null } : l));
   const pick = (name: string, met: number) => {
@@ -155,6 +156,25 @@ export default function LiveWorkout() {
 
       {!latest && <div className="banner warn">Log your weight first — calories burned depend on it, and the session can't be saved without it.</div>}
 
+      {live.plan && (
+        <section className="card stack">
+          <h2 style={{ margin: 0 }}>Today's plan</h2>
+          {live.plan.map((p) => {
+            const done = live.sets.filter((s) => s.name === p.name).length;
+            const complete = done >= p.sets;
+            return (
+              <button type="button" key={p.name} disabled={paused} className={`plan-row ${current?.name === p.name ? 'on' : ''} ${complete ? 'done' : ''}`} onClick={() => pick(p.name, p.met)}>
+                <span className="grow" style={{ textAlign: 'left' }}>
+                  <b>{complete ? '✓ ' : ''}{p.name}</b>
+                  {p.note && <span className="muted small" style={{ display: 'block', fontWeight: 500 }}>{p.note}</span>}
+                </span>
+                <span className="chip">{Math.min(done, p.sets)}/{p.sets} × {p.reps}</span>
+              </button>
+            );
+          })}
+        </section>
+      )}
+
       <section className="card stack">
         <h2 style={{ margin: 0 }}>Exercise</h2>
         <div className="chips">
@@ -186,14 +206,14 @@ export default function LiveWorkout() {
       <section className="card stack">
         {current ? (
           <>
-            <h2 style={{ margin: 0 }}>{current.name} — Set {currentSets + 1}</h2>
+            <h2 style={{ margin: 0 }}>{current.name} — Set {currentSets + 1}{planItem ? <span className="muted small" style={{ fontWeight: 600 }}> · target {planItem.reps} reps</span> : null}</h2>
             <form className="row" onSubmit={(e) => (e.preventDefault(), addSet())}>
               <input
                 ref={repsRef}
                 className="reps-input grow"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                placeholder="Reps"
+                placeholder={planItem ? `Reps (target ${planItem.reps})` : 'Reps'}
                 aria-label="Reps"
                 disabled={paused}
                 value={reps}

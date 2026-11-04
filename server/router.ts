@@ -12,6 +12,8 @@ import {
   textMealSchema,
   weightSchema,
   workoutSchema,
+  settingsSchema,
+  planRequestSchema,
 } from './schemas.js';
 import { analyzeImage, analyzeText, searchFoods } from './nutrition.js';
 import { chatText } from './llm.js';
@@ -24,9 +26,10 @@ import {
   weeklyAverages,
   round,
 } from '../shared/calc.js';
-import { addDays, diffDays, isDateStr } from '../shared/dates.js';
+import { addDays, ageOn, diffDays, isDateStr, weekStartOf } from '../shared/dates.js';
 import type { DailyTotal, DayReview, FoodItem, Meal, Profile, WeightEntry } from '../shared/types.js';
 import { reviewDay } from './review.js';
+import { planSession } from './plan.js';
 import { estimateWorkout, type GymItem, type Workout } from '../shared/workout.js';
 
 export interface ApiRequest {
@@ -327,6 +330,59 @@ route('DELETE', '/workouts/:id', async ({ params }) => {
   const c = await db();
   await c.execute({ sql: 'DELETE FROM workouts WHERE id = ?', args: [id] });
   return { ok: true };
+});
+
+// ---- settings (weekly workout goal)
+const DEFAULT_WEEKLY_WORKOUTS = 4;
+async function getWeeklyGoal(): Promise<number> {
+  const c = await db();
+  const r = await c.execute({ sql: "SELECT value FROM settings WHERE key = 'weeklyWorkouts'", args: [] });
+  const n = r.rows[0] ? Number(r.rows[0].value) : NaN;
+  return Number.isInteger(n) && n >= 1 && n <= 7 ? n : DEFAULT_WEEKLY_WORKOUTS;
+}
+
+route('GET', '/settings', async () => ({ settings: { weeklyWorkouts: await getWeeklyGoal() } }));
+
+route('PUT', '/settings', async ({ req }) => {
+  const s = settingsSchema.parse(req.body);
+  const c = await db();
+  await c.execute({
+    sql: `INSERT INTO settings (key, value) VALUES ('weeklyWorkouts', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    args: [String(s.weeklyWorkouts)],
+  });
+  return { settings: s };
+});
+
+// ---- AI session plan
+route('POST', '/workout-plan', async ({ req }) => {
+  const { today } = planRequestSchema.parse(req.body);
+  const profile = await getProfile();
+  const weights = await loadWeights();
+  const all = await loadWorkouts(addDays(today, -45), today);
+  const recent = [...all].reverse().filter((w) => w.kind === 'gym').slice(0, 6);
+  const goal = await getWeeklyGoal();
+  const ws = weekStartOf(today, profile?.weekStart ?? 1);
+  const weekDays = new Set(all.filter((w) => w.date >= ws).map((w) => w.date));
+  const last = all.at(-1);
+  const customs = new Map<string, number>();
+  for (const w of all) for (const i of w.items) customs.set(i.name, i.met);
+  const customList = [...customs].map(([name, met]) => ({ name, met }));
+  const plan = await planSession(
+    {
+      today,
+      sex: profile?.sex,
+      age: profile ? ageOn(profile.dob, today) : undefined,
+      weightKg: weights.at(-1)?.kg,
+      weeklyGoal: goal,
+      workoutsThisWeek: weekDays.size,
+      daysSinceLast: last ? diffDays(today, last.date) : null,
+      recent,
+      customs: customList,
+    },
+    customList,
+  );
+  if (plan.exercises.length === 0) throw new HttpError(502, 'The AI did not return a usable plan — please try again.');
+  return { plan };
 });
 
 // ---- AI day review (which meals were needed on a day that went over target)

@@ -3,7 +3,8 @@ import { useApp } from '../lib/useApp';
 import { useMeals, useWorkouts } from '../lib/queries';
 import { Loading, ErrorBanner, Ring, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
-import { sumNutrients, weightChangeKg } from '../../shared/calc';
+import { PROTEIN_G_PER_KG, proteinTarget, sumNutrients, weightChangeKg } from '../../shared/calc';
+import { useConsistency } from '../lib/useConsistency';
 import { fmtDay, num, signed } from '../lib/format';
 import { countsForDate, sumWorkouts } from '../../shared/workout';
 import { addDays } from '../../shared/dates';
@@ -12,6 +13,7 @@ export default function Today() {
   const { loading, error, profile, today, latest, target, summary } = useApp();
   const mealsQ = useMeals(today, today);
   const workoutsQ = useWorkouts(today, addDays(today, 1));
+  const cons = useConsistency();
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner error={error} />;
@@ -30,6 +32,7 @@ export default function Today() {
   const consumed = totals.calories;
   const remaining = target ? target.target - consumed : null;
   const balance = target ? consumed - target.tdee : null; // vs maintenance
+  const ptarget = latest ? proteinTarget(latest.kg) : null;
   const burn = sumWorkouts((workoutsQ.data ?? []).filter((w) => countsForDate(w) === today));
 
   return (
@@ -85,15 +88,62 @@ export default function Today() {
       </section>
 
       <div className="grid3">
-        <Stat macro="p" label="Protein" value={`${num(totals.protein)} g`} />
+        <Stat
+          macro="p"
+          label="Protein"
+          value={`${num(totals.protein)} g`}
+          sub={ptarget ? `of ${ptarget} g` : undefined}
+          bar={ptarget ? totals.protein / ptarget : undefined}
+        />
         <Stat macro="c" label="Carbs" value={`${num(totals.carbs)} g`} />
         <Stat macro="f" label="Fat" value={`${num(totals.fat)} g`} />
       </div>
+      {ptarget && latest && (
+        <p className="muted small stat-note">
+          Protein target = your weight × {PROTEIN_G_PER_KG} g ({latest.kg} kg → {ptarget} g).
+          {totals.protein < ptarget ? ` ${num(ptarget - totals.protein)} g to go today.` : ' Target reached ✓'}
+        </p>
+      )}
+
+      {cons.ready && (
+        <Stat
+          label="🏋️ Workouts this week"
+          value={`${cons.thisWeek} / ${cons.goal}`}
+          sub={cons.weekStreak > 0 ? `${cons.weekStreak}-week goal streak` : 'weekly goal'}
+          tone={cons.thisWeek >= cons.goal ? 'good' : undefined}
+          bar={cons.thisWeek / cons.goal}
+        />
+      )}
 
       <div className="grid2">
         <Link to={`/meals/new?date=${today}`} className="btn block">＋ Add a meal</Link>
         <Link to="/workout" className="btn secondary block">🏋️ Log workout</Link>
       </div>
+
+      {cons.ready && (
+        <section className="card checkin">
+          <h2>Last 7 days</h2>
+          <div className="grid2">
+            <Stat label="Workouts" value={`${cons.week.workouts} / ${cons.week.workoutGoal}`} sub={cons.week.burnedKcal > 0 ? `${num(cons.week.burnedKcal)} kcal burned` : undefined} tone={cons.week.workouts >= cons.week.workoutGoal ? 'good' : undefined} />
+            <Stat
+              label="Avg protein"
+              macro="p"
+              value={cons.week.avgProtein === null ? '—' : `${num(cons.week.avgProtein)} g`}
+              sub={cons.week.proteinTarget ? `target ${cons.week.proteinTarget} g` : undefined}
+              bar={cons.week.avgProtein !== null && cons.week.proteinTarget ? cons.week.avgProtein / cons.week.proteinTarget : undefined}
+            />
+            <div style={{ gridColumn: '1 / -1' }}>
+            <Stat
+              label="Weight (week avg)"
+              value={summary?.weekChange == null ? '—' : `${signed(summary.weekChange, 2)} kg`}
+              sub="vs last week"
+              tone={summary?.weekChange == null ? undefined : summary.weekChange <= 0 ? 'good' : 'bad'}
+            />
+            </div>
+          </div>
+          <p className="review-tip small mt">🎯 <b>Focus:</b> {cons.week.focus}</p>
+        </section>
+      )}
 
       <section className="card">
         <h2>Weight</h2>

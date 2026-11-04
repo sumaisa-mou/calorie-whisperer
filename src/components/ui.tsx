@@ -21,18 +21,22 @@ export function Stat({
   sub,
   tone,
   macro,
+  bar,
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
   tone?: 'good' | 'bad' | 'warn';
   macro?: 'p' | 'c' | 'f';
+  /** 0..1 — draws a small progress bar */
+  bar?: number;
 }) {
   return (
     <div className={`stat ${macro ? `macro-${macro}` : ''}`}>
       <div className="label">{label}</div>
       <div className={`value ${tone ?? ''}`}>{value}</div>
       {sub && <div className="sub">{sub}</div>}
+      {bar !== undefined && <div className="stat-bar"><div style={{ width: `${Math.round(Math.min(1, Math.max(0, bar)) * 100)}%` }} /></div>}
     </div>
   );
 }

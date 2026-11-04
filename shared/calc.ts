@@ -357,3 +357,11 @@ export function balanceTotals(rows: BalanceRow[]): BalanceTotals {
   const diff = consumed - needed - burned;
   return { days: logged.length, needed: round(needed), burned: round(burned), consumed: round(consumed), diff: round(diff), grams: round((diff / KCAL_PER_KG) * 1000) };
 }
+
+// ---------------------------------------------------------------- protein
+
+/** Protein per kg of body weight — the standard minimum for a healthy adult (RDA). */
+export const PROTEIN_G_PER_KG = 0.8;
+
+/** Daily protein target in grams: body weight × 0.8. */
+export const proteinTarget = (weightKg: number): number => Math.round(weightKg * PROTEIN_G_PER_KG);

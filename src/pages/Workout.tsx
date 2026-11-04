@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../lib/useApp';
-import { useDeleteWorkout, useSaveWorkout, useWorkouts } from '../lib/queries';
+import { planSession, useDeleteWorkout, useSaveSettings, useSaveWorkout, useWorkouts } from '../lib/queries';
+import { useConsistency } from '../lib/useConsistency';
 import { ErrorBanner, Loading, Segmented, Stat } from '../components/ui';
 import NumInput from '../components/NumInput';
-import { activeMs, fmtClock, loadLive } from '../lib/liveWorkout';
+import { activeMs, fmtClock, loadLive, saveLive } from '../lib/liveWorkout';
 import { addDays, nowTimeInTz, weekStartOf } from '../../shared/dates';
 import { fmtDay, num } from '../lib/format';
 import {
@@ -17,6 +18,7 @@ import {
   type GymItem,
   type Workout,
   type WorkoutKind,
+  type WorkoutPlan,
 } from '../../shared/workout';
 
 type Row = GymItem & { uid: string };
@@ -47,6 +49,12 @@ export default function WorkoutPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState<number | null>(null);
   const liveNow = loadLive();
+  const nav = useNavigate();
+  const cons = useConsistency();
+  const saveGoal = useSaveSettings();
+  const [plan, setPlan] = useState<WorkoutPlan | null>(null);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planError, setPlanError] = useState<unknown>(null);
 
   const tz = profile?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dateVal = date || today;
@@ -96,6 +104,25 @@ export default function WorkoutPage() {
   }
 
   // editing sets/reps by hand replaces any exact per-set reps from the live tracker
+  async function makePlan() {
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      setPlan(await planSession(today));
+    } catch (e) {
+      setPlanError(e);
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  function startPlan() {
+    if (!plan) return;
+    if (loadLive() && !confirm('A gym session is already running. Replace it with this plan?')) return;
+    saveLive({ startedAt: Date.now(), sets: [], current: { name: plan.exercises[0].name, met: plan.exercises[0].met }, pausedMs: 0, pausedAt: null, plan: plan.exercises });
+    nav('/workout/live');
+  }
+
   const patch = (uid: string, p: Partial<GymItem>) => setRows((rs) => rs.map((r) => (r.uid === uid ? { ...r, ...p, setReps: undefined } : r)));
   const togglePreset = (name: string, met: number) => setRows((rs) => (rs.some((r) => r.name === name) ? rs.filter((r) => r.name !== name) : [...rs, row(name, met)]));
 
@@ -142,6 +169,50 @@ export default function WorkoutPage() {
       <Link to="/workout/live" className="btn block live-start">
         {liveNow ? `▶ Resume gym session · ${fmtClock(activeMs(liveNow, Date.now()))}${liveNow.pausedAt ? ' (paused)' : ''}` : '▶ Start gym session'}
       </Link>
+
+      <section className="card plan-card stack">
+        <div className="plan-head">
+          <h2>✨ AI session plan</h2>
+          <button className="secondary small" disabled={planBusy} onClick={makePlan}>{planBusy ? 'Planning…' : plan ? '↻ New plan' : 'Plan my session'}</button>
+        </div>
+        {!plan && !planBusy && !planError && <p className="muted small" style={{ margin: 0 }}>Builds today's session from your recent workouts, with targets slightly above what you did last time.</p>}
+        {planBusy && <p className="muted small" style={{ margin: 0 }}><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 8, verticalAlign: '-2px' }} />Your trainer is thinking…</p>}
+        <ErrorBanner error={planError} />
+        {plan && (
+          <>
+            {plan.summary && <p style={{ margin: 0 }}>{plan.summary}</p>}
+            <ul className="plan-list">
+              {plan.exercises.map((e) => (
+                <li key={e.name}>
+                  <div className="plan-ex">
+                    <b>{e.name}</b>
+                    {e.note && <span className="muted small">{e.note}</span>}
+                  </div>
+                  <span className="chip">{e.sets} × {e.reps}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="plan-foot muted small">⏱ ≈ {plan.durationMin} min{plan.tip ? <><br />💡 {plan.tip}</> : null}</p>
+            <button className="block" onClick={startPlan}>▶ Start this plan</button>
+          </>
+        )}
+      </section>
+
+      <section className="card">
+        <div className="row between">
+          <div>
+            <h2 style={{ margin: 0 }}>Weekly goal</h2>
+            <div className="muted small">{cons.thisWeek} of {cons.goal} workouts this week{cons.weekStreak > 0 ? ` · 🔥 ${cons.weekStreak}-week streak` : ''}</div>
+          </div>
+          <div className="row">
+            <button className="secondary small" aria-label="Fewer workouts per week" disabled={cons.goal <= 1 || saveGoal.isPending} onClick={() => saveGoal.mutate({ weeklyWorkouts: cons.goal - 1 })}>−</button>
+            <b style={{ minWidth: 22, textAlign: 'center' }}>{cons.goal}</b>
+            <button className="secondary small" aria-label="More workouts per week" disabled={cons.goal >= 7 || saveGoal.isPending} onClick={() => saveGoal.mutate({ weeklyWorkouts: cons.goal + 1 })}>＋</button>
+          </div>
+        </div>
+        <div className="progress" style={{ marginTop: 10 }}><div style={{ width: `${Math.min(100, (cons.thisWeek / cons.goal) * 100)}%` }} /></div>
+        <ErrorBanner error={saveGoal.error} />
+      </section>
 
       <section className="hero">
         <h2>This week</h2>

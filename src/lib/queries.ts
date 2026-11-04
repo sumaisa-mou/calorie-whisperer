@@ -9,7 +9,7 @@ import type {
   Profile,
   WeightEntry,
 } from '../../shared/types';
-import type { Workout, WorkoutInput } from '../../shared/workout';
+import type { Workout, WorkoutInput, WorkoutPlan } from '../../shared/workout';
 import type { DayReview } from '../../shared/types';
 
 export const useProfile = () =>
@@ -140,3 +140,19 @@ export const useReviewDay = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['reviews'] }),
   });
 };
+
+export const useSettings = () =>
+  useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => (await api<{ settings: { weeklyWorkouts: number } }>('GET', '/settings')).settings,
+  });
+
+export const useSaveSettings = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (s: { weeklyWorkouts: number }) => api('PUT', '/settings', s),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+  });
+};
+
+export const planSession = (today: string) => api<{ plan: WorkoutPlan }>('POST', '/workout-plan', { today }).then((r) => r.plan);

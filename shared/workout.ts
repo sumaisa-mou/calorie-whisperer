@@ -157,3 +157,19 @@ export function sumWorkouts(list: Pick<Workout, 'kcal' | 'minutes'>[]) {
   const kcal = list.reduce((a, w) => a + w.kcal, 0);
   return { kcal: round(kcal), minutes: round(list.reduce((a, w) => a + w.minutes, 0)), fatG: round(kcalToFatG(kcal), 1), kgEffect: round(kcal / KCAL_PER_KG, 2) };
 }
+
+// ---- AI session plan
+export interface PlanExercise {
+  name: string;
+  met: number;
+  sets: number;
+  reps: number; // target reps per set
+  note: string;
+}
+
+export interface WorkoutPlan {
+  summary: string;
+  tip: string;
+  durationMin: number;
+  exercises: PlanExercise[];
+}

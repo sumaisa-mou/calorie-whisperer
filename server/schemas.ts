@@ -70,6 +70,10 @@ export const loginSchema = z.object({ password: z.string().min(1).max(200) });
 
 export const rangeQuery = z.object({ from: dateStr, to: dateStr });
 
+export const settingsSchema = z.object({ weeklyWorkouts: z.number().int().min(1).max(7) });
+
+export const planRequestSchema = z.object({ today: dateStr });
+
 export const gymItemSchema = z
   .object({
     name: z.string().trim().min(1).max(80),

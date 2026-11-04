@@ -6,7 +6,7 @@ import { useApp } from '../lib/useApp';
 import { useDaily, useWorkouts } from '../lib/queries';
 import { ErrorBanner, Loading, Segmented, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
-import { KCAL_PER_KG, balanceRows, balanceTotals, projectFromIntake, round } from '../../shared/calc';
+import { KCAL_PER_KG, balanceRows, balanceTotals, projectFromIntake, proteinTarget, round } from '../../shared/calc';
 import { addDays, rangeDays } from '../../shared/dates';
 import { countsForDate } from '../../shared/workout';
 import { fmtShort, num, signed } from '../lib/format';
@@ -27,15 +27,19 @@ export default function Charts() {
     return m;
   }, [workoutsQ.data]);
 
+  const ptarget = latest ? proteinTarget(latest.kg) : null;
+
   const data = useMemo(() => {
     const byDate = new Map((dailyQ.data ?? []).map((d) => [d.date, d]));
     return rangeDays(from, today).map((date) => ({
       date,
       consumed: byDate.get(date)?.calories ?? null,
+      protein: byDate.get(date)?.protein ?? null,
+      proteinTarget: ptarget ?? undefined,
       target: target?.target,
       tdee: target ? target.tdee + Math.round(burnByDate.get(date) ?? 0) : undefined,
     }));
-  }, [dailyQ.data, from, today, target, burnByDate]);
+  }, [dailyQ.data, from, today, target, burnByDate, ptarget]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner error={error} />;
@@ -92,24 +96,30 @@ export default function Charts() {
 
       <section className="card">
         <h2>Eaten vs target</h2>
+        <p className="muted small" style={{ marginTop: '-.3rem' }}>Two bars per day: calories (left scale) and protein in grams (right scale).</p>
         <div className="chart" aria-label="Calories chart">
           <ResponsiveContainer>
-            <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+            <ComposedChart data={data} margin={{ top: 8, right: -6, bottom: 0, left: -8 }} barGap={1}>
               <CartesianGrid stroke={GRID} strokeOpacity={0.25} vertical={false} />
               <XAxis dataKey="date" tickFormatter={fmtShort} tick={{ fill: GRID, fontSize: 11 }} minTickGap={days > 14 ? 30 : 12} />
-              <YAxis tick={{ fill: GRID, fontSize: 11 }} />
+              <YAxis yAxisId="kcal" tick={{ fill: GRID, fontSize: 11 }} />
+              <YAxis yAxisId="g" orientation="right" tick={{ fill: '#3b82f6', fontSize: 11 }} unit=" g" width={42} />
               <Tooltip
                 labelFormatter={(l) => fmtShort(String(l))}
-                formatter={(v, name) => [`${num(Number(v))} kcal`, name === 'consumed' ? 'Eaten' : name === 'target' ? 'Target' : 'Needed (maintenance + gym)']}
+                formatter={(v, name) =>
+                  name === 'protein' ? [`${num(Number(v))} g`, 'Protein'] : name === 'proteinTarget' ? [`${num(Number(v))} g`, 'Protein target'] : [`${num(Number(v))} kcal`, name === 'consumed' ? 'Eaten' : name === 'target' ? 'Target' : 'Needed (maintenance + gym)']
+                }
                 contentStyle={{ borderRadius: 10, border: '1px solid #33415566' }}
               />
-              <Bar dataKey="consumed" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+              <Bar yAxisId="kcal" dataKey="consumed" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                 {data.map((d) => (
                   <Cell key={d.date} fill={target && d.consumed !== null && d.consumed > target.target ? '#ef4444' : '#22c55e'} />
                 ))}
               </Bar>
-              <Line dataKey="target" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} />
-              <Line dataKey="tdee" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+              <Bar yAxisId="g" dataKey="protein" fill="#3b82f6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              <Line yAxisId="g" dataKey="proteinTarget" stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
+              <Line yAxisId="kcal" dataKey="target" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line yAxisId="kcal" dataKey="tdee" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -117,7 +127,8 @@ export default function Charts() {
           <span className="dot" style={{ background: '#22c55e' }} />within target ·{' '}
           <span className="dot" style={{ background: '#ef4444' }} />over target ·{' '}
           <span className="dot" style={{ background: '#f59e0b' }} />target ·{' '}
-          <span className="dot" style={{ background: '#94a3b8' }} />needed (maintenance + gym)
+          <span className="dot" style={{ background: '#94a3b8' }} />needed (maintenance + gym) ·{' '}
+          <span className="dot" style={{ background: '#3b82f6' }} />protein{ptarget ? ` (target ${ptarget} g = ${latest!.kg} kg × 0.8)` : ''}
         </p>
         <p className="muted small">
           A red bar only means you went over your <b>target</b>, which is set below what your body burns. Weight goes up only when you eat more than the dashed line.
