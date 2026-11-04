@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../lib/useApp';
 import { useSaveWorkout } from '../lib/queries';
 import { ErrorBanner, Loading, Segmented } from '../components/ui';
-import { fmtClock, loadLive, saveLive, toItems, type Live } from '../lib/liveWorkout';
+import { activeMs, fmtClock, loadLive, saveLive, toItems, type Live } from '../lib/liveWorkout';
 import { estimateWorkout, GYM_PRESETS, INTENSITIES } from '../../shared/workout';
 import { nowTimeInTz, todayInTz } from '../../shared/dates';
 import { num } from '../lib/format';
@@ -17,7 +17,7 @@ export default function LiveWorkout() {
   const { loading, profile, latest } = useApp();
   const nav = useNavigate();
   const save = useSaveWorkout();
-  const [live, setLive] = useState<Live>(() => loadLive() ?? { startedAt: Date.now(), sets: [], current: null });
+  const [live, setLive] = useState<Live>(() => loadLive() ?? { startedAt: Date.now(), sets: [], current: null, pausedMs: 0, pausedAt: null });
   const [now, setNow] = useState(() => Date.now());
   const [reps, setReps] = useState('');
   const [customName, setCustomName] = useState('');
@@ -55,7 +55,8 @@ export default function LiveWorkout() {
     };
   }, []);
 
-  const elapsedMs = now - live.startedAt;
+  const paused = live.pausedAt !== null;
+  const elapsedMs = activeMs(live, now);
   const elapsedMin = elapsedMs / 60000;
   const items = useMemo(() => toItems(live.sets), [live.sets]);
   const est = useMemo(
@@ -67,14 +68,17 @@ export default function LiveWorkout() {
 
   const current = live.current;
   const currentSets = current ? live.sets.filter((s) => s.name === current.name).length : 0;
+  const pause = () => setLive((l) => (l.pausedAt ? l : { ...l, pausedAt: Date.now() }));
+  const resume = () => setLive((l) => (l.pausedAt ? { ...l, pausedMs: l.pausedMs + (Date.now() - l.pausedAt), pausedAt: null } : l));
   const pick = (name: string, met: number) => {
+    if (paused) return;
     setLive((l) => ({ ...l, current: { name, met } }));
     setFormError(null);
     setTimeout(() => repsRef.current?.focus(), 0);
   };
 
   function addSet() {
-    if (!current) return;
+    if (!current || paused) return;
     const n = Math.round(Number(reps));
     if (!Number.isFinite(n) || n < 1 || n > 500) return setFormError('Enter the reps for this set (1–500).');
     if (currentSets >= MAX_SETS) return setFormError(`Max ${MAX_SETS} sets per exercise.`);
@@ -109,7 +113,7 @@ export default function LiveWorkout() {
           date: todayInTz(tz, started),
           time: nowTimeInTz(tz, started),
           kind: 'gym',
-          minutes: Math.min(600, Math.max(1, Math.round((Date.now() - live.startedAt) / 6000) / 10)),
+          minutes: Math.min(600, Math.max(1, Math.round(activeMs(live, Date.now()) / 6000) / 10)),
           steps: 0,
           items,
           note: '',
@@ -131,8 +135,13 @@ export default function LiveWorkout() {
       </div>
 
       <section className="hero">
-        <h2>Time</h2>
-        <div className="live-timer" aria-live="off">{fmtClock(elapsedMs)}</div>
+        <div className="row between">
+          <h2 style={{ margin: 0 }}>{paused ? 'Paused' : 'Time'}</h2>
+          <button type="button" className="pause-btn" onClick={paused ? resume : pause}>
+            {paused ? '▶ Resume' : '⏸ Pause'}
+          </button>
+        </div>
+        <div className={`live-timer ${paused ? 'is-paused' : ''}`} aria-live="off">{fmtClock(elapsedMs)}</div>
         <div className="hero-main" style={{ marginTop: '.6rem' }}>
           <div>
             <div className="hero-big">≈ {num(est?.kcal ?? 0)} <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>kcal</span></div>
@@ -150,14 +159,14 @@ export default function LiveWorkout() {
         <h2 style={{ margin: 0 }}>Exercise</h2>
         <div className="chips">
           {GYM_PRESETS.map((p) => (
-            <button type="button" key={p.name} className={`chip-btn ${current?.name === p.name ? 'on' : ''}`} onClick={() => pick(p.name, p.met)}>
+            <button type="button" key={p.name} className={`chip-btn ${current?.name === p.name ? 'on' : ''}`} disabled={paused} onClick={() => pick(p.name, p.met)}>
               {p.name}
             </button>
           ))}
           {items
             .filter((i) => !GYM_PRESETS.some((p) => p.name === i.name))
             .map((i) => (
-              <button type="button" key={i.name} className={`chip-btn ${current?.name === i.name ? 'on' : ''}`} onClick={() => pick(i.name, i.met)}>
+              <button type="button" key={i.name} className={`chip-btn ${current?.name === i.name ? 'on' : ''}`} disabled={paused} onClick={() => pick(i.name, i.met)}>
                 {i.name}
               </button>
             ))}
@@ -186,15 +195,17 @@ export default function LiveWorkout() {
                 pattern="[0-9]*"
                 placeholder="Reps"
                 aria-label="Reps"
+                disabled={paused}
                 value={reps}
                 onChange={(e) => setReps(e.target.value.replace(/\D/g, '').slice(0, 3))}
               />
-              <button disabled={!reps}>＋ Add set</button>
+              <button disabled={!reps || paused}>＋ Add set</button>
             </form>
           </>
         ) : (
           <p className="muted center" style={{ margin: 0 }}>Pick an exercise above, then enter your reps for each set.</p>
         )}
+        {paused && <div className="banner info">Paused — the clock is stopped. Resume to keep logging sets.</div>}
         {formError && <div className="banner error" role="alert">{formError}</div>}
       </section>
 

@@ -25,7 +25,8 @@ import {
   round,
 } from '../shared/calc.js';
 import { addDays, diffDays, isDateStr } from '../shared/dates.js';
-import type { DailyTotal, FoodItem, Meal, Profile, WeightEntry } from '../shared/types.js';
+import type { DailyTotal, DayReview, FoodItem, Meal, Profile, WeightEntry } from '../shared/types.js';
+import { reviewDay } from './review.js';
 import { estimateWorkout, type GymItem, type Workout } from '../shared/workout.js';
 
 export interface ApiRequest {
@@ -326,6 +327,38 @@ route('DELETE', '/workouts/:id', async ({ params }) => {
   const c = await db();
   await c.execute({ sql: 'DELETE FROM workouts WHERE id = ?', args: [id] });
   return { ok: true };
+});
+
+// ---- AI day review (which meals were needed on a day that went over target)
+route('GET', '/reviews', async ({ req }) => {
+  const { from, to } = range(req.query);
+  const c = await db();
+  const res = await c.execute({ sql: 'SELECT data FROM day_reviews WHERE date >= ? AND date <= ? ORDER BY date', args: [from, to] });
+  return { reviews: res.rows.map((r) => JSON.parse(String(r.data)) as DayReview) };
+});
+
+route('POST', '/reviews/:date', async ({ params }) => {
+  const date = params[0];
+  if (!isDateStr(date)) throw new HttpError(400, 'Bad date.');
+  const profile = await getProfile();
+  if (!profile) throw new HttpError(400, 'Set up your profile first.');
+  const weights = await loadWeights();
+  const w = [...weights].reverse().find((x) => x.date <= date) ?? weights[0];
+  if (!w) throw new HttpError(400, 'Log your weight first — the calorie target depends on it.');
+  const meals = await loadMeals(date, date);
+  const eaten = sumNutrients(meals).calories;
+  const target = calorieTarget(profile, w.kg, date).target;
+  if (meals.length === 0 || eaten <= target) throw new HttpError(400, 'That day is within your calorie target — nothing to review.');
+
+  const result = await reviewDay({ date, targetKcal: target, eatenKcal: eaten, weeklyLossKg: profile.weeklyLossKg, meals });
+  const review: DayReview = { date, targetKcal: round(target), eatenKcal: round(eaten), ...result, createdAt: new Date().toISOString() };
+  const c = await db();
+  await c.execute({
+    sql: `INSERT INTO day_reviews (date, data, created_at) VALUES (?, ?, ?)
+          ON CONFLICT(date) DO UPDATE SET data = excluded.data, created_at = excluded.created_at`,
+    args: [date, JSON.stringify(review), review.createdAt],
+  });
+  return { review };
 });
 
 // ---- AI

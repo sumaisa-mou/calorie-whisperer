@@ -3,13 +3,26 @@ import type { GymItem } from '../../shared/workout';
 const KEY = 'ft_live_workout';
 
 export type LiveSet = { name: string; met: number; reps: number };
-export type Live = { startedAt: number; sets: LiveSet[]; current: { name: string; met: number } | null };
+export type Live = {
+  startedAt: number;
+  sets: LiveSet[];
+  current: { name: string; met: number } | null;
+  /** total time spent paused so far (ms) */
+  pausedMs: number;
+  /** when the current pause began, or null while running */
+  pausedAt: number | null;
+};
+
+/** Training time: wall-clock since start, minus every pause. Frozen while paused. */
+export const activeMs = (l: Live, now: number) => Math.max(0, (l.pausedAt ?? now) - l.startedAt - l.pausedMs);
 
 /** The session in progress lives in localStorage so a refresh or locked phone never loses it. */
 export function loadLive(): Live | null {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    return v && typeof v.startedAt === 'number' && Array.isArray(v.sets) ? (v as Live) : null;
+    if (!v || typeof v.startedAt !== 'number' || !Array.isArray(v.sets)) return null;
+    // sessions saved before pause existed have no pause fields
+    return { ...v, pausedMs: Number(v.pausedMs) || 0, pausedAt: typeof v.pausedAt === 'number' ? v.pausedAt : null } as Live;
   } catch {
     return null;
   }

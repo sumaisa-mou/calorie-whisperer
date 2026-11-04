@@ -248,9 +248,25 @@ label { display: block; font-size: .78rem; font-weight: 700; color: var(--muted)
 .estimate-big { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
 .right { text-align: right; }
 
+/* ---- AI day review tags */
+.tag { display: inline-block; margin-left: .4rem; font-size: .7rem; font-weight: 800; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.tag-necessary { background: var(--accent-soft); color: var(--good); }
+.tag-improve { background: var(--warn-soft); color: var(--warn); }
+.tag-avoidable { background: var(--danger-soft); color: var(--danger); }
+.review-note { margin: .5rem 0 0; padding: 8px 12px; border-radius: 12px; border-left: 4px solid currentColor; }
+.review-necessary { background: var(--accent-soft); color: var(--good); }
+.review-improve { background: var(--warn-soft); color: var(--warn); }
+.review-avoidable { background: var(--danger-soft); color: var(--danger); }
+.review-card { border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); }
+.review-tip { padding: 8px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--good); }
+
 /* ---- live session */
 .live-start { font-size: 1.05rem; padding: 16px 18px; }
 .live-timer { font-size: 3.6rem; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.pause-btn { background: rgba(255, 255, 255, .2); color: #fff; box-shadow: none; padding: 8px 16px; border-radius: 99px; font-size: .9rem; border: 1px solid rgba(255, 255, 255, .35); }
+.pause-btn:hover { background: rgba(255, 255, 255, .3); filter: none; }
+.live-timer.is-paused { opacity: .55; animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .25; } }
 .reps-input { font-size: 1.8rem; font-weight: 800; text-align: center; padding: 12px; }
 .set-pill { display: inline-block; margin: 0 .4rem .3rem 0; padding: 4px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--good); }
 .live { padding-bottom: 84px; }

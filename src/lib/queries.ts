@@ -10,6 +10,7 @@ import type {
   WeightEntry,
 } from '../../shared/types';
 import type { Workout, WorkoutInput } from '../../shared/workout';
+import type { DayReview } from '../../shared/types';
 
 export const useProfile = () =>
   useQuery({
@@ -123,5 +124,19 @@ export const useDeleteWorkout = () => {
   return useMutation({
     mutationFn: (id: number) => api('DELETE', `/workouts/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['workouts'] }),
+  });
+};
+
+export const useReviews = (from: string, to: string) =>
+  useQuery({
+    queryKey: ['reviews', from, to],
+    queryFn: async () => (await api<{ reviews: DayReview[] }>('GET', `/reviews?from=${from}&to=${to}`)).reviews,
+  });
+
+export const useReviewDay = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (date: string) => api<{ review: DayReview }>('POST', `/reviews/${date}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['reviews'] }),
   });
 };

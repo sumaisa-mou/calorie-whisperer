@@ -4,7 +4,7 @@ import { useApp } from '../lib/useApp';
 import { useDeleteWorkout, useSaveWorkout, useWorkouts } from '../lib/queries';
 import { ErrorBanner, Loading, Segmented, Stat } from '../components/ui';
 import NumInput from '../components/NumInput';
-import { fmtClock, loadLive } from '../lib/liveWorkout';
+import { activeMs, fmtClock, loadLive } from '../lib/liveWorkout';
 import { addDays, nowTimeInTz, weekStartOf } from '../../shared/dates';
 import { fmtDay, num } from '../lib/format';
 import {
@@ -140,7 +140,7 @@ export default function WorkoutPage() {
       </div>
 
       <Link to="/workout/live" className="btn block live-start">
-        {liveNow ? `▶ Resume gym session · ${fmtClock(Date.now() - liveNow.startedAt)}` : '▶ Start gym session'}
+        {liveNow ? `▶ Resume gym session · ${fmtClock(activeMs(liveNow, Date.now()))}${liveNow.pausedAt ? ' (paused)' : ''}` : '▶ Start gym session'}
       </Link>
 
       <section className="hero">

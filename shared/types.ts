@@ -60,3 +60,25 @@ export interface FoodSearchHit {
   brand: string;
   per100g: Nutrients;
 }
+
+// ---- AI day review: which meals were needed when a day went over the calorie target
+export type MealVerdict = 'necessary' | 'improve' | 'avoidable';
+
+export interface MealReview {
+  id: number; // meal id
+  calories: number; // meal calories at review time — if the meal is edited later the tag is treated as stale
+  verdict: MealVerdict;
+  reason: string;
+  savableKcal: number;
+  avoidItems: string[];
+}
+
+export interface DayReview {
+  date: string;
+  targetKcal: number;
+  eatenKcal: number;
+  summary: string;
+  tip: string;
+  meals: MealReview[];
+  createdAt: string;
+}
