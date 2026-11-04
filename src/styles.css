@@ -248,6 +248,15 @@ label { display: block; font-size: .78rem; font-weight: 700; color: var(--muted)
 .estimate-big { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
 .right { text-align: right; }
 
+/* ---- live session */
+.live-start { font-size: 1.05rem; padding: 16px 18px; }
+.live-timer { font-size: 3.6rem; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.reps-input { font-size: 1.8rem; font-weight: 800; text-align: center; padding: 12px; }
+.set-pill { display: inline-block; margin: 0 .4rem .3rem 0; padding: 4px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--good); }
+.live { padding-bottom: 84px; }
+.live-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px); background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--border); }
+.live-bar > button { max-width: 680px; margin: 0 auto; display: flex; }
+
 /* ---- segmented */
 .segmented { display: flex; background: color-mix(in srgb, var(--accent) 8%, var(--bg)); border: 1px solid var(--border); border-radius: 16px; padding: 4px; gap: 2px; }
 .segmented button { flex: 1; background: transparent; color: var(--muted); padding: 8px 4px; border-radius: 12px; font-size: .82rem; white-space: nowrap; box-shadow: none; }

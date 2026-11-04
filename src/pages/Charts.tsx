@@ -8,6 +8,7 @@ import { ErrorBanner, Loading, Segmented, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
 import { KCAL_PER_KG, balanceRows, balanceTotals, projectFromIntake, round } from '../../shared/calc';
 import { addDays, rangeDays } from '../../shared/dates';
+import { countsForDate } from '../../shared/workout';
 import { fmtShort, num, signed } from '../lib/format';
 
 const GRID = '#94a3b8';
@@ -22,7 +23,7 @@ export default function Charts() {
   const workoutsQ = useWorkouts(from, today);
   const burnByDate = useMemo(() => {
     const m = new Map<string, number>();
-    for (const w of workoutsQ.data ?? []) m.set(w.date, (m.get(w.date) ?? 0) + w.kcal);
+    for (const w of workoutsQ.data ?? []) m.set(countsForDate(w), (m.get(countsForDate(w)) ?? 0) + w.kcal);
     return m;
   }, [workoutsQ.data]);
 
@@ -49,8 +50,10 @@ export default function Charts() {
   const scale = new Map<string, { kg: number; change: number | null }>();
   weights.forEach((w, i) => scale.set(w.date, { kg: w.kg, change: i > 0 ? round(w.kg - weights[i - 1].kg, 2) : null }));
   const countedRows = rows.filter((r) => r.date !== today && r.consumed !== null);
-  const scaleTotal = countedRows.reduce((s, r) => s + (scale.get(r.date)?.change ?? 0), 0);
-  const scaleDays = countedRows.filter((r) => scale.get(r.date)?.change != null).length;
+  // The morning weigh-in shows the result of the day BEFORE, so each row is matched with the next day's weigh-in.
+  const nextScale = (date: string) => scale.get(addDays(date, 1));
+  const scaleTotal = countedRows.reduce((s, r) => s + (nextScale(r.date)?.change ?? 0), 0);
+  const scaleDays = countedRows.filter((r) => nextScale(r.date)?.change != null).length;
   const totals = balanceTotals(rows.filter((r) => r.date !== today));
   const grams = (g: number) => `${signed(g, 0)} g`;
   const tone = (n: number | null) => (n === null ? '' : n <= 0 ? 'good' : 'bad');
@@ -158,27 +161,31 @@ export default function Charts() {
                   <th className="r">Eaten</th>
                   <th className="r">Balance</th>
                   <th className="r">Est.</th>
-                  <th className="r">Scale</th>
+                  <th className="r">Next-day scale</th>
                 </tr>
               </thead>
               <tbody>
-                {[...rows].reverse().map((r) => (
-                  <tr key={r.date} className={r.date === today ? 'muted' : ''}>
+                {[...rows].reverse().map((r) => {
+                  const open = r.date === today; // day still in progress: no balance yet
+                  const next = nextScale(r.date);
+                  return (
+                  <tr key={r.date} className={open ? 'muted' : ''}>
                     <td>{fmtShort(r.date)}{r.date === today && <div className="small">so far</div>}</td>
                     <td className="r">{num(r.needed + r.burned)}{r.burned > 0 && <div className="small good">+{num(r.burned)} gym</div>}</td>
                     <td className="r">{r.consumed === null ? '—' : num(r.consumed)}</td>
-                    <td className={`r ${tone(r.diff)}`}>{r.diff === null ? '—' : signed(r.diff, 0)}</td>
-                    <td className={`r ${tone(r.grams)}`}><b>{r.grams === null ? '—' : grams(r.grams)}</b></td>
+                    <td className={`r ${open ? '' : tone(r.diff)}`}>{open || r.diff === null ? '—' : signed(r.diff, 0)}</td>
+                    <td className={`r ${open ? '' : tone(r.grams)}`}><b>{open || r.grams === null ? '—' : grams(r.grams)}</b></td>
                     <td className="r">
-                      {scale.has(r.date) ? (
+                      {next ? (
                         <>
-                          <b>{scale.get(r.date)!.kg}</b>
-                          {scale.get(r.date)!.change !== null && <div className={`small ${tone(scale.get(r.date)!.change)}`}>{signed(scale.get(r.date)!.change!, 2)} kg</div>}
+                          <b>{next.kg}</b>
+                          {next.change !== null && <div className={`small ${tone(next.change)}`}>{signed(next.change, 2)} kg</div>}
                         </>
                       ) : '—'}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr>
@@ -193,11 +200,11 @@ export default function Charts() {
             </table>
           </div>
           <p className="muted small">
-            <b>Needed</b> = what your body burns in a day (maintenance at {latest ? `${latest.kg} kg` : 'your latest weight'}) <b>+ your logged gym/walk burn</b>.
+            <b>Needed</b> = what your body burns in a day (maintenance at {latest ? `${latest.kg} kg` : 'your latest weight'}) <b>+ your logged gym/walk burn</b> (a session logged before 5 am counts for the day before, since your day ends at the morning weigh-in).
             <b> Balance</b> = eaten − needed. <b>Est.</b> = balance ÷ 7,700 kcal per kg, in grams of body fat: <span className="good">green = loss</span>, <span className="bad">red = gain</span>.
-            <b> Scale</b> = your actual weigh-in that day and how much it moved since your previous weigh-in.
+            <b> Next-day scale</b> = your weigh-in the <i>following morning</i> and how much it moved since the weigh-in before — that's the scale's answer to this day's eating. Today shows "—" until tomorrow's weigh-in.
             The scale also swings by hundreds of grams from water, salt and food still in your gut, so one day rarely matches the estimate — compare the <b>Total</b> row over a week or more.
-            Days with no meals logged are skipped, and today stays out of the total until it's over.
+            Days with no meals logged are skipped, and today stays out of the Est. and the total until it's over.
           </p>
         </section>
       )}

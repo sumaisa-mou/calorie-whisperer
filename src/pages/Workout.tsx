@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../lib/useApp';
 import { useDeleteWorkout, useSaveWorkout, useWorkouts } from '../lib/queries';
 import { ErrorBanner, Loading, Segmented, Stat } from '../components/ui';
 import NumInput from '../components/NumInput';
+import { fmtClock, loadLive } from '../lib/liveWorkout';
 import { addDays, nowTimeInTz, weekStartOf } from '../../shared/dates';
 import { fmtDay, num } from '../lib/format';
 import {
@@ -11,6 +13,7 @@ import {
   INTENSITIES,
   kcalToFatG,
   sumWorkouts,
+  countsForDate,
   type GymItem,
   type Workout,
   type WorkoutKind,
@@ -43,6 +46,7 @@ export default function WorkoutPage() {
   const [customMet, setCustomMet] = useState<number>(5);
   const [formError, setFormError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState<number | null>(null);
+  const liveNow = loadLive();
 
   const tz = profile?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dateVal = date || today;
@@ -58,13 +62,13 @@ export default function WorkoutPage() {
 
   const workouts = workoutsQ.data ?? [];
   const weekFrom = weekStartOf(today, profile?.weekStart ?? 1);
-  const week = sumWorkouts(workouts.filter((w) => w.date >= weekFrom));
-  const todayTotal = sumWorkouts(workouts.filter((w) => w.date === today));
+  const week = sumWorkouts(workouts.filter((w) => countsForDate(w) >= weekFrom));
+  const todayTotal = sumWorkouts(workouts.filter((w) => countsForDate(w) === today));
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
-  const perDay = days.map((d) => ({ d, kcal: sumWorkouts(workouts.filter((w) => w.date === d)).kcal }));
+  const perDay = days.map((d) => ({ d, kcal: sumWorkouts(workouts.filter((w) => countsForDate(w) === d)).kcal }));
   const maxKcal = Math.max(1, ...perDay.map((x) => x.kcal));
 
-  const grouped = [...workouts].reverse().reduce<Record<string, Workout[]>>((acc, w) => ((acc[w.date] ??= []).push(w), acc), {});
+  const grouped = [...workouts].reverse().reduce<Record<string, Workout[]>>((acc, w) => ((acc[countsForDate(w)] ??= []).push(w), acc), {});
 
   function reset() {
     setEditId(null);
@@ -91,7 +95,8 @@ export default function WorkoutPage() {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  const patch = (uid: string, p: Partial<GymItem>) => setRows((rs) => rs.map((r) => (r.uid === uid ? { ...r, ...p } : r)));
+  // editing sets/reps by hand replaces any exact per-set reps from the live tracker
+  const patch = (uid: string, p: Partial<GymItem>) => setRows((rs) => rs.map((r) => (r.uid === uid ? { ...r, ...p, setReps: undefined } : r)));
   const togglePreset = (name: string, met: number) => setRows((rs) => (rs.some((r) => r.name === name) ? rs.filter((r) => r.name !== name) : [...rs, row(name, met)]));
 
   function addCustom() {
@@ -133,6 +138,10 @@ export default function WorkoutPage() {
           <div className="muted small">{fmtDay(today)}</div>
         </div>
       </div>
+
+      <Link to="/workout/live" className="btn block live-start">
+        {liveNow ? `▶ Resume gym session · ${fmtClock(Date.now() - liveNow.startedAt)}` : '▶ Start gym session'}
+      </Link>
 
       <section className="hero">
         <h2>This week</h2>
@@ -235,6 +244,7 @@ export default function WorkoutPage() {
                   {est && est.itemKcal[idx] > 0 && <span className="chip">≈ {num(est.itemKcal[idx])} kcal</span>}
                   <button type="button" className="ghost small" aria-label={`Remove ${r.name}`} onClick={() => setRows((rs) => rs.filter((x) => x.uid !== r.uid))}>✕</button>
                 </div>
+                {r.setReps && <p className="muted small" style={{ margin: '.3rem 0 0' }}>Tracked reps: {r.setReps.join(' · ')} (changing sets/reps below replaces these)</p>}
                 <div className="nums" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                   <div>
                     <label>Sets</label>
@@ -259,7 +269,7 @@ export default function WorkoutPage() {
           <div className="estimate">
             <div>
               <div className="estimate-big">≈ {num(est.kcal)} kcal</div>
-              <div className="muted small">≈ {num(est.fatG, 1)} g fat{est.distanceKm ? ` · ${est.distanceKm} km at ${est.speedKmh} km/h` : ''}</div>
+              <div className="muted small">≈ {num(est.fatG, 1)} g fat{est.distanceKm ? ` · ${est.distanceKm} km at ${est.speedKmh} km/h` : ''}{kind === 'gym' && est.repsPerMin !== undefined && rows.length > 0 ? ` · ${est.repsPerMin} reps/min (pace ×${est.paceFactor})` : ''}</div>
             </div>
             <div className="muted small right">at {latest.kg} kg</div>
           </div>
@@ -288,6 +298,7 @@ export default function WorkoutPage() {
               <div className="row between">
                 <div>
                   <b>{w.time}</b> <span className="chip muted">{KIND_LABEL[w.kind]}</span>
+                  {countsForDate(w) !== w.date && <span className="muted small"> · after midnight, counts for {fmtDay(countsForDate(w))}</span>}
                 </div>
                 <b>{num(w.kcal)} kcal</b>
               </div>
@@ -300,7 +311,7 @@ export default function WorkoutPage() {
                   {w.items.map((i, idx) => (
                     <li key={idx}>
                       <span>{i.name}</span>
-                      <span className="muted">{i.sets} × {i.reps}</span>
+                      <span className="muted">{i.setReps ? `${i.sets} set${i.sets > 1 ? 's' : ''}: ${i.setReps.join(' · ')}` : `${i.sets} × ${i.reps}`}</span>
                     </li>
                   ))}
                 </ul>

@@ -70,12 +70,15 @@ export const loginSchema = z.object({ password: z.string().min(1).max(200) });
 
 export const rangeQuery = z.object({ from: dateStr, to: dateStr });
 
-export const gymItemSchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  sets: z.number().int().min(1).max(30),
-  reps: z.number().int().min(1).max(500),
-  met: num(1.5, 12),
-});
+export const gymItemSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    sets: z.number().int().min(1).max(30),
+    reps: z.number().int().min(1).max(500),
+    met: num(1.5, 12),
+    setReps: z.array(z.number().int().min(1).max(500)).min(1).max(30).optional(),
+  })
+  .refine((i) => !i.setReps || i.setReps.length === i.sets, { message: 'sets must match setReps', path: ['sets'] });
 
 export const workoutSchema = z
   .object({

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { getToken } from './lib/api';
 import { Loading, TabBar } from './components/ui';
@@ -10,6 +10,7 @@ import MealEdit from './pages/MealEdit';
 import Settings from './pages/Settings';
 import Chat from './pages/Chat';
 import Workout from './pages/Workout';
+import LiveWorkout from './pages/LiveWorkout';
 
 // Recharts is heavy — only load it when a chart page is opened.
 const WeightPage = lazy(() => import('./pages/Weight'));
@@ -18,6 +19,7 @@ const Charts = lazy(() => import('./pages/Charts'));
 export default function App() {
   const [signedIn, setSignedIn] = useState(() => !!getToken());
   const qc = useQueryClient();
+  const { pathname } = useLocation();
 
   useEffect(() => {
     const onLogout = () => {
@@ -40,6 +42,7 @@ export default function App() {
           <Route path="/meals/new" element={<MealEdit />} />
           <Route path="/meals/:id" element={<MealEdit />} />
           <Route path="/workout" element={<Workout />} />
+          <Route path="/workout/live" element={<LiveWorkout />} />
           <Route path="/weight" element={<WeightPage />} />
           <Route path="/charts" element={<Charts />} />
           <Route path="/settings" element={<Settings />} />
@@ -48,7 +51,7 @@ export default function App() {
         </Routes>
         </Suspense>
       </main>
-      <TabBar />
+      {!pathname.startsWith('/workout/live') && <TabBar />}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { KCAL_PER_KG, round } from './calc.js';
+import { addDays } from './dates.js';
 
 export type WorkoutKind = 'walk' | 'gym';
 
@@ -6,8 +7,11 @@ export type WorkoutKind = 'walk' | 'gym';
 export interface GymItem {
   name: string;
   sets: number;
+  /** reps per set (average when `setReps` is present) */
   reps: number;
   met: number;
+  /** exact reps of each set, e.g. [30, 45]; set by the live tracker */
+  setReps?: number[];
 }
 
 export interface WorkoutInput {
@@ -79,13 +83,22 @@ export interface WorkoutEstimate {
   distanceKm?: number;
   /** kcal share per gym item (same order as input) */
   itemKcal: number[];
+  /** gym only: total reps ÷ session minutes */
+  repsPerMin?: number;
+  /** gym only: how much the pace scaled the burn (1 = typical pace) */
+  paceFactor?: number;
 }
+
+/** A typical bodyweight session (sets + rests) works out to roughly this many reps per minute. */
+export const REF_REPS_PER_MIN = 8;
+export const PACE_MIN = 0.6;
+export const PACE_MAX = 1.4;
 
 /** Fat burned if all the energy came from fat — an upper bound, 1 g ≈ 7.7 kcal. */
 export const kcalToFatG = (kcal: number) => (kcal / KCAL_PER_KG) * 1000;
 
 /**
- * Extra calories burned above resting: (MET − 1) × kg × hours.
+ * Extra calories burned above resting: (MET − 1) × kg × hours (gym sessions also scaled by reps-per-minute pace).
  * (Subtracting 1 MET avoids double-counting the resting burn already inside your daily maintenance.)
  */
 export function estimateWorkout(
@@ -98,6 +111,8 @@ export function estimateWorkout(
   let speedKmh: number | undefined;
   let distanceKm: number | undefined;
   let itemKcal: number[] = [];
+  let repsPerMin: number | undefined;
+  let paceFactor = 1;
 
   if (w.kind === 'walk') {
     if (w.steps > 0 && w.minutes > 0) {
@@ -107,14 +122,18 @@ export function estimateWorkout(
     met = walkMet(speedKmh ?? DEFAULT_WALK_KMH);
   } else {
     // session MET = average of the exercises' METs, weighted by volume (sets × reps)
-    const vol = w.items.map((i) => Math.max(1, i.sets) * Math.max(1, i.reps));
+    const vol = w.items.map((i) => (i.setReps?.length ? i.setReps.reduce((a, b) => a + b, 0) : Math.max(1, i.sets) * Math.max(1, i.reps)));
     const total = vol.reduce((a, b) => a + b, 0);
     met = total > 0 ? w.items.reduce((a, i, idx) => a + i.met * vol[idx], 0) / total : 0;
-    const sessionKcal = Math.max(0, met - 1) * weightKg * hours;
+    // pace: more reps per minute = harder session. The 5-min floor stops the first seconds of a live
+    // session from showing a wild rate.
+    repsPerMin = total / Math.max(w.minutes, 5);
+    paceFactor = Math.min(PACE_MAX, Math.max(PACE_MIN, repsPerMin / REF_REPS_PER_MIN));
+    const sessionKcal = Math.max(0, met - 1) * paceFactor * weightKg * hours;
     itemKcal = vol.map((v) => (total > 0 ? round((sessionKcal * v) / total, 1) : 0));
   }
 
-  const kcal = Math.max(0, met - 1) * weightKg * hours;
+  const kcal = Math.max(0, met - 1) * paceFactor * weightKg * hours;
   return {
     met: round(met, 2),
     kcal: round(kcal),
@@ -122,8 +141,17 @@ export function estimateWorkout(
     speedKmh: speedKmh === undefined ? undefined : round(speedKmh, 1),
     distanceKm: distanceKm === undefined ? undefined : round(distanceKm, 2),
     itemKcal,
+    repsPerMin: repsPerMin === undefined ? undefined : round(repsPerMin, 1),
+    paceFactor: w.kind === 'gym' ? round(paceFactor, 2) : undefined,
   };
 }
+
+/**
+ * Your training "day" ends at the next morning's weigh-in, so a session logged in the small hours
+ * (e.g. 00:30) counts toward the PREVIOUS day. Anything before this time rolls back one day.
+ */
+export const DAY_STARTS_AT = '05:00';
+export const countsForDate = (w: { date: string; time: string }): string => (w.time < DAY_STARTS_AT ? addDays(w.date, -1) : w.date);
 
 export function sumWorkouts(list: Pick<Workout, 'kcal' | 'minutes'>[]) {
   const kcal = list.reduce((a, w) => a + w.kcal, 0);

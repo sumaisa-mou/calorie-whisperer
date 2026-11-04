@@ -5,12 +5,13 @@ import { Loading, ErrorBanner, Ring, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
 import { sumNutrients, weightChangeKg } from '../../shared/calc';
 import { fmtDay, num, signed } from '../lib/format';
-import { sumWorkouts } from '../../shared/workout';
+import { countsForDate, sumWorkouts } from '../../shared/workout';
+import { addDays } from '../../shared/dates';
 
 export default function Today() {
   const { loading, error, profile, today, latest, target, summary } = useApp();
   const mealsQ = useMeals(today, today);
-  const workoutsQ = useWorkouts(today, today);
+  const workoutsQ = useWorkouts(today, addDays(today, 1));
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner error={error} />;
@@ -29,7 +30,7 @@ export default function Today() {
   const consumed = totals.calories;
   const remaining = target ? target.target - consumed : null;
   const balance = target ? consumed - target.tdee : null; // vs maintenance
-  const burn = sumWorkouts(workoutsQ.data ?? []);
+  const burn = sumWorkouts((workoutsQ.data ?? []).filter((w) => countsForDate(w) === today));
 
   return (
     <div className="stack">
