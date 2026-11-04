@@ -11,7 +11,7 @@ export default function WeightEntryForm({ today, existingKg }: { today: string; 
     e.preventDefault();
     const v = Number(kg);
     if (!Number.isFinite(v) || v < 20 || v > 400) return;
-    await save.mutateAsync({ date, kg: Math.round(v * 10) / 10 });
+    await save.mutateAsync({ date, kg: Math.round(v * 100) / 100 });
     setKg('');
   }
 
@@ -24,7 +24,7 @@ export default function WeightEntryForm({ today, existingKg }: { today: string; 
             id="w-kg"
             type="number"
             inputMode="decimal"
-            step="0.1"
+            step="0.01"
             min="20"
             max="400"
             placeholder={existingKg ? String(existingKg) : 'e.g. 72.4'}

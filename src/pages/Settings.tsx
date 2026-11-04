@@ -140,7 +140,7 @@ export default function Settings() {
         <div className="grid2">
           <div className="field">
             <label htmlFor="goal">Goal weight (kg)</label>
-            <input id="goal" type="number" inputMode="decimal" step="0.1" min="30" max="250" required value={f.goalWeightKg} onChange={(e) => set('goalWeightKg', e.target.value)} />
+            <input id="goal" type="number" inputMode="decimal" step="0.01" min="30" max="250" required value={f.goalWeightKg} onChange={(e) => set('goalWeightKg', e.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="loss">Loss per week</label>
