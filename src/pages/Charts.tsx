@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useApp } from '../lib/useApp';
-import { useDaily } from '../lib/queries';
+import { useDaily, useWorkouts } from '../lib/queries';
 import { ErrorBanner, Loading, Segmented, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
 import { KCAL_PER_KG, balanceRows, balanceTotals, projectFromIntake, round } from '../../shared/calc';
@@ -19,6 +19,12 @@ export default function Charts() {
   const [days, setDays] = useState<Days>(14);
   const from = addDays(today, -(days - 1));
   const dailyQ = useDaily(from, today);
+  const workoutsQ = useWorkouts(from, today);
+  const burnByDate = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of workoutsQ.data ?? []) m.set(w.date, (m.get(w.date) ?? 0) + w.kcal);
+    return m;
+  }, [workoutsQ.data]);
 
   const data = useMemo(() => {
     const byDate = new Map((dailyQ.data ?? []).map((d) => [d.date, d]));
@@ -26,9 +32,9 @@ export default function Charts() {
       date,
       consumed: byDate.get(date)?.calories ?? null,
       target: target?.target,
-      tdee: target?.tdee,
+      tdee: target ? target.tdee + Math.round(burnByDate.get(date) ?? 0) : undefined,
     }));
-  }, [dailyQ.data, from, today, target]);
+  }, [dailyQ.data, from, today, target, burnByDate]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner error={error} />;
@@ -36,15 +42,24 @@ export default function Charts() {
 
   // Day-by-day table. Today is still in progress, so it is shown but kept out of the totals.
   const rows = target
-    ? balanceRows(rangeDays(from, today), new Map((dailyQ.data ?? []).map((d) => [d.date, d.calories])), target.tdee)
+    ? balanceRows(rangeDays(from, today), new Map((dailyQ.data ?? []).map((d) => [d.date, d.calories])), target.tdee, burnByDate)
     : [];
+
+  // What the scale actually did: each weigh-in minus the weigh-in before it.
+  const scale = new Map<string, { kg: number; change: number | null }>();
+  weights.forEach((w, i) => scale.set(w.date, { kg: w.kg, change: i > 0 ? round(w.kg - weights[i - 1].kg, 2) : null }));
+  const countedRows = rows.filter((r) => r.date !== today && r.consumed !== null);
+  const scaleTotal = countedRows.reduce((s, r) => s + (scale.get(r.date)?.change ?? 0), 0);
+  const scaleDays = countedRows.filter((r) => scale.get(r.date)?.change != null).length;
   const totals = balanceTotals(rows.filter((r) => r.date !== today));
   const grams = (g: number) => `${signed(g, 0)} g`;
   const tone = (n: number | null) => (n === null ? '' : n <= 0 ? 'good' : 'bad');
 
   const logged = (dailyQ.data ?? []).filter((d) => d.calories > 0);
-  const proj = target ? projectFromIntake(logged.map((d) => d.calories), target.tdee) : null;
-  const estChange = target ? logged.reduce((s, d) => s + (d.calories - target.tdee), 0) / KCAL_PER_KG : null;
+  const needOf = (date: string) => (target ? target.tdee + (burnByDate.get(date) ?? 0) : 0);
+  const avgNeed = logged.length ? logged.reduce((s, d) => s + needOf(d.date), 0) / logged.length : 0;
+  const proj = target ? projectFromIntake(logged.map((d) => d.calories), avgNeed) : null;
+  const estChange = target ? logged.reduce((s, d) => s + (d.calories - needOf(d.date)), 0) / KCAL_PER_KG : null;
 
   const inRange = weights.filter((w) => w.date >= from);
   const actual = inRange.length >= 2 ? round(inRange.at(-1)!.kg - inRange[0].kg, 1) : null;
@@ -82,7 +97,7 @@ export default function Charts() {
               <YAxis tick={{ fill: GRID, fontSize: 11 }} />
               <Tooltip
                 labelFormatter={(l) => fmtShort(String(l))}
-                formatter={(v, name) => [`${num(Number(v))} kcal`, name === 'consumed' ? 'Eaten' : name === 'target' ? 'Target' : 'Maintenance']}
+                formatter={(v, name) => [`${num(Number(v))} kcal`, name === 'consumed' ? 'Eaten' : name === 'target' ? 'Target' : 'Needed (maintenance + gym)']}
                 contentStyle={{ borderRadius: 10, border: '1px solid #33415566' }}
               />
               <Bar dataKey="consumed" radius={[4, 4, 0, 0]} isAnimationActive={false}>
@@ -99,7 +114,10 @@ export default function Charts() {
           <span className="dot" style={{ background: '#22c55e' }} />within target ·{' '}
           <span className="dot" style={{ background: '#ef4444' }} />over target ·{' '}
           <span className="dot" style={{ background: '#f59e0b' }} />target ·{' '}
-          <span className="dot" style={{ background: '#94a3b8' }} />maintenance
+          <span className="dot" style={{ background: '#94a3b8' }} />needed (maintenance + gym)
+        </p>
+        <p className="muted small">
+          A red bar only means you went over your <b>target</b>, which is set below what your body burns. Weight goes up only when you eat more than the dashed line.
         </p>
       </section>
 
@@ -139,35 +157,47 @@ export default function Charts() {
                   <th className="r">Needed</th>
                   <th className="r">Eaten</th>
                   <th className="r">Balance</th>
-                  <th className="r">Weight</th>
+                  <th className="r">Est.</th>
+                  <th className="r">Scale</th>
                 </tr>
               </thead>
               <tbody>
                 {[...rows].reverse().map((r) => (
                   <tr key={r.date} className={r.date === today ? 'muted' : ''}>
                     <td>{fmtShort(r.date)}{r.date === today && <div className="small">so far</div>}</td>
-                    <td className="r">{num(r.needed)}</td>
+                    <td className="r">{num(r.needed + r.burned)}{r.burned > 0 && <div className="small good">+{num(r.burned)} gym</div>}</td>
                     <td className="r">{r.consumed === null ? '—' : num(r.consumed)}</td>
                     <td className={`r ${tone(r.diff)}`}>{r.diff === null ? '—' : signed(r.diff, 0)}</td>
                     <td className={`r ${tone(r.grams)}`}><b>{r.grams === null ? '—' : grams(r.grams)}</b></td>
+                    <td className="r">
+                      {scale.has(r.date) ? (
+                        <>
+                          <b>{scale.get(r.date)!.kg}</b>
+                          {scale.get(r.date)!.change !== null && <div className={`small ${tone(scale.get(r.date)!.change)}`}>{signed(scale.get(r.date)!.change!, 2)} kg</div>}
+                        </>
+                      ) : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
                   <td><b>Total</b><div className="muted small">{totals.days} logged days</div></td>
-                  <td className="r"><b>{num(totals.needed)}</b></td>
+                  <td className="r"><b>{num(totals.needed + totals.burned)}</b></td>
                   <td className="r"><b>{num(totals.consumed)}</b></td>
                   <td className={`r ${tone(totals.diff)}`}><b>{signed(totals.diff, 0)}</b></td>
                   <td className={`r ${tone(totals.grams)}`}><b>{grams(totals.grams)}</b></td>
+                  <td className={`r ${scaleDays ? tone(scaleTotal) : ''}`}>{scaleDays ? <b>{signed(scaleTotal, 2)} kg</b> : '—'}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
           <p className="muted small">
-            <b>Needed</b> = calories your body burns in a day (maintenance, at {latest ? `${latest.kg} kg` : 'your latest weight'}).
-            <b> Weight ≈</b> = (eaten − needed) ÷ 7,700 kcal per kg, in grams: <span className="good">green = loss</span>, <span className="bad">red = gain</span>.
-            Days with no meals logged are skipped, and today stays out of the total until it's over. It's an estimate — water and salt move the scale by far more than this.
+            <b>Needed</b> = what your body burns in a day (maintenance at {latest ? `${latest.kg} kg` : 'your latest weight'}) <b>+ your logged gym/walk burn</b>.
+            <b> Balance</b> = eaten − needed. <b>Est.</b> = balance ÷ 7,700 kcal per kg, in grams of body fat: <span className="good">green = loss</span>, <span className="bad">red = gain</span>.
+            <b> Scale</b> = your actual weigh-in that day and how much it moved since your previous weigh-in.
+            The scale also swings by hundreds of grams from water, salt and food still in your gut, so one day rarely matches the estimate — compare the <b>Total</b> row over a week or more.
+            Days with no meals logged are skipped, and today stays out of the total until it's over.
           </p>
         </section>
       )}
@@ -180,11 +210,11 @@ export default function Charts() {
           <>
             <div className="grid2">
               <Stat label="Avg eaten" value={`${num(proj.avgConsumed)}`} sub={`kcal/day · ${proj.days} days logged`} />
-              <Stat label="Maintenance" value={num(target.tdee)} sub="kcal/day (you burn)" />
+              <Stat label={avgNeed > target.tdee ? 'Maintenance + gym' : 'Maintenance'} value={num(avgNeed)} sub="kcal/day (you burn)" />
               <Stat
                 label="Daily balance"
                 value={`${signed(proj.avgDiff, 0)}`}
-                sub="kcal vs maintenance"
+                sub="kcal vs what you burn"
                 tone={proj.avgDiff <= 0 ? 'good' : 'bad'}
               />
               <Stat

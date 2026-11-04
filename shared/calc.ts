@@ -314,9 +314,11 @@ export interface BalanceRow {
   date: DateStr;
   /** maintenance calories (what your body burns) */
   needed: number;
+  /** extra calories burned by logged workouts that day */
+  burned: number;
   /** null when no meals were logged that day */
   consumed: number | null;
-  /** consumed − needed (negative = deficit) */
+  /** consumed − needed − burned (negative = deficit) */
   diff: number | null;
   /** estimated body-weight change in grams (negative = loss) */
   grams: number | null;
@@ -326,18 +328,21 @@ export function balanceRows(
   dates: DateStr[],
   consumedByDate: Map<DateStr, number>,
   needed: number,
+  burnedByDate: Map<DateStr, number> = new Map(),
 ): BalanceRow[] {
   return dates.map((date) => {
     const c = consumedByDate.get(date);
-    if (!c || c <= 0) return { date, needed, consumed: null, diff: null, grams: null };
-    const diff = c - needed;
-    return { date, needed, consumed: round(c), diff: round(diff), grams: round((diff / KCAL_PER_KG) * 1000) };
+    const burned = round(burnedByDate.get(date) ?? 0);
+    if (!c || c <= 0) return { date, needed, burned, consumed: null, diff: null, grams: null };
+    const diff = c - needed - burned;
+    return { date, needed, burned, consumed: round(c), diff: round(diff), grams: round((diff / KCAL_PER_KG) * 1000) };
   });
 }
 
 export interface BalanceTotals {
   days: number;
   needed: number;
+  burned: number;
   consumed: number;
   diff: number;
   grams: number;
@@ -347,7 +352,8 @@ export interface BalanceTotals {
 export function balanceTotals(rows: BalanceRow[]): BalanceTotals {
   const logged = rows.filter((r) => r.consumed !== null);
   const needed = logged.reduce((s, r) => s + r.needed, 0);
+  const burned = logged.reduce((s, r) => s + r.burned, 0);
   const consumed = logged.reduce((s, r) => s + (r.consumed ?? 0), 0);
-  const diff = consumed - needed;
-  return { days: logged.length, needed: round(needed), consumed: round(consumed), diff: round(diff), grams: round((diff / KCAL_PER_KG) * 1000) };
+  const diff = consumed - needed - burned;
+  return { days: logged.length, needed: round(needed), burned: round(burned), consumed: round(consumed), diff: round(diff), grams: round((diff / KCAL_PER_KG) * 1000) };
 }

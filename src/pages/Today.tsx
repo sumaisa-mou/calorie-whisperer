@@ -1,14 +1,16 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/useApp';
-import { useMeals } from '../lib/queries';
+import { useMeals, useWorkouts } from '../lib/queries';
 import { Loading, ErrorBanner, Ring, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
 import { sumNutrients, weightChangeKg } from '../../shared/calc';
 import { fmtDay, num, signed } from '../lib/format';
+import { sumWorkouts } from '../../shared/workout';
 
 export default function Today() {
   const { loading, error, profile, today, latest, target, summary } = useApp();
   const mealsQ = useMeals(today, today);
+  const workoutsQ = useWorkouts(today, today);
 
   if (loading) return <Loading />;
   if (error) return <ErrorBanner error={error} />;
@@ -27,6 +29,7 @@ export default function Today() {
   const consumed = totals.calories;
   const remaining = target ? target.target - consumed : null;
   const balance = target ? consumed - target.tdee : null; // vs maintenance
+  const burn = sumWorkouts(workoutsQ.data ?? []);
 
   return (
     <div className="stack">
@@ -65,6 +68,12 @@ export default function Today() {
             {target.clamped && (
               <p className="banner warn small mt">Your weekly-loss goal would go below the safe minimum, so the target is held at {target.floor} kcal (≈ {target.effectiveWeeklyLossKg} kg/week).</p>
             )}
+            {burn.kcal > 0 && (
+              <p className="hero-note">
+                Workout today: <b className="good">{num(burn.kcal)} kcal burned</b> (≈ {num(burn.fatG, 1)} g fat)
+                {balance !== null && target && <> → with food and workouts together ≈ <b className={balance - burn.kcal <= 0 ? 'good' : 'bad'}>{signed(weightChangeKg(consumed, target.tdee + burn.kcal), 2)} kg</b> body weight per day like this.</>}
+              </p>
+            )}
           </>
         ) : (
           <>
@@ -80,7 +89,10 @@ export default function Today() {
         <Stat macro="f" label="Fat" value={`${num(totals.fat)} g`} />
       </div>
 
-      <Link to={`/meals/new?date=${today}`} className="btn block">＋ Add a meal</Link>
+      <div className="grid2">
+        <Link to={`/meals/new?date=${today}`} className="btn block">＋ Add a meal</Link>
+        <Link to="/workout" className="btn secondary block">🏋️ Log workout</Link>
+      </div>
 
       <section className="card">
         <h2>Weight</h2>

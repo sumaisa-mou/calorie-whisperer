@@ -11,6 +11,7 @@ import {
   rangeQuery,
   textMealSchema,
   weightSchema,
+  workoutSchema,
 } from './schemas.js';
 import { analyzeImage, analyzeText, searchFoods } from './nutrition.js';
 import { chatText } from './llm.js';
@@ -25,6 +26,7 @@ import {
 } from '../shared/calc.js';
 import { addDays, diffDays, isDateStr } from '../shared/dates.js';
 import type { DailyTotal, FoodItem, Meal, Profile, WeightEntry } from '../shared/types.js';
+import { estimateWorkout, type GymItem, type Workout } from '../shared/workout.js';
 
 export interface ApiRequest {
   method: string;
@@ -75,6 +77,36 @@ const rowToMeal = (r: Row): Meal => ({
   sugar: Number(r.sugar),
   sodium: Number(r.sodium),
 });
+
+const rowToWorkout = (r: Row): Workout => ({
+  id: Number(r.id),
+  date: String(r.date),
+  time: String(r.time),
+  kind: r.kind === 'gym' ? 'gym' : 'walk',
+  minutes: Number(r.minutes),
+  steps: Number(r.steps),
+  items: JSON.parse(String(r.items)) as GymItem[],
+  note: String(r.note ?? ''),
+  kcal: Number(r.kcal),
+});
+
+async function loadWorkouts(from: string, to: string): Promise<Workout[]> {
+  const c = await db();
+  const res = await c.execute({
+    sql: 'SELECT * FROM workouts WHERE date >= ? AND date <= ? ORDER BY date, time, id',
+    args: [from, to],
+  });
+  return res.rows.map((r) => rowToWorkout(r as unknown as Row));
+}
+
+/** Estimated burn uses your weight on that day (or the nearest earlier/first entry). */
+async function estimateFor(input: z.infer<typeof workoutSchema>) {
+  const weights = await loadWeights();
+  if (weights.length === 0) throw new HttpError(400, 'Log your weight first — calories burned depend on it.');
+  const w = [...weights].reverse().find((x) => x.date <= input.date) ?? weights[0];
+  const profile = await getProfile();
+  return estimateWorkout(input, w.kg, profile?.heightCm);
+}
 
 async function getProfile(): Promise<Profile | null> {
   const c = await db();
@@ -257,6 +289,45 @@ route('GET', '/daily', async ({ req }) => {
   return { daily };
 });
 
+// ---- workouts
+route('GET', '/workouts', async ({ req }) => {
+  const { from, to } = range(req.query);
+  return { workouts: await loadWorkouts(from, to) };
+});
+
+route('POST', '/workouts', async ({ req }) => {
+  const input = workoutSchema.parse(req.body);
+  const est = await estimateFor(input);
+  const c = await db();
+  const res = await c.execute({
+    sql: `INSERT INTO workouts (date, time, kind, minutes, steps, items, note, kcal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [input.date, input.time, input.kind, input.minutes, input.steps, JSON.stringify(input.items), input.note, est.kcal, new Date().toISOString()],
+  });
+  return { workout: { id: Number(res.lastInsertRowid), ...input, kcal: est.kcal } satisfies Workout };
+});
+
+route('PUT', '/workouts/:id', async ({ req, params }) => {
+  const id = Number(params[0]);
+  if (!Number.isInteger(id)) throw new HttpError(400, 'Bad id.');
+  const input = workoutSchema.parse(req.body);
+  const est = await estimateFor(input);
+  const c = await db();
+  const res = await c.execute({
+    sql: `UPDATE workouts SET date=?, time=?, kind=?, minutes=?, steps=?, items=?, note=?, kcal=? WHERE id=?`,
+    args: [input.date, input.time, input.kind, input.minutes, input.steps, JSON.stringify(input.items), input.note, est.kcal, id],
+  });
+  if (res.rowsAffected === 0) throw new HttpError(404, 'Workout not found.');
+  return { workout: { id, ...input, kcal: est.kcal } satisfies Workout };
+});
+
+route('DELETE', '/workouts/:id', async ({ params }) => {
+  const id = Number(params[0]);
+  if (!Number.isInteger(id)) throw new HttpError(400, 'Bad id.');
+  const c = await db();
+  await c.execute({ sql: 'DELETE FROM workouts WHERE id = ?', args: [id] });
+  return { ok: true };
+});
+
 // ---- AI
 route('POST', '/analyze', async ({ req }) => {
   const { image, mimeType, note } = analyzeSchema.parse(req.body);
@@ -328,7 +399,8 @@ ${lines.join('\n')}`;
 route('GET', '/export', async () => {
   const c = await db();
   const meals = (await c.execute('SELECT * FROM meals ORDER BY date, time, id')).rows.map((r) => rowToMeal(r as unknown as Row));
-  return { exportedAt: new Date().toISOString(), profile: await getProfile(), weights: await loadWeights(), meals };
+  const workouts = await loadWorkouts('0000-01-01', '9999-12-31');
+  return { exportedAt: new Date().toISOString(), profile: await getProfile(), weights: await loadWeights(), meals, workouts };
 });
 
 // ------------------------------------------------------------------ dispatcher

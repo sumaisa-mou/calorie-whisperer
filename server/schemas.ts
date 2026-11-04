@@ -69,3 +69,22 @@ export const chatSchema = z.object({
 export const loginSchema = z.object({ password: z.string().min(1).max(200) });
 
 export const rangeQuery = z.object({ from: dateStr, to: dateStr });
+
+export const gymItemSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  sets: z.number().int().min(1).max(30),
+  reps: z.number().int().min(1).max(500),
+  met: num(1.5, 12),
+});
+
+export const workoutSchema = z
+  .object({
+    date: dateStr,
+    time: timeStr,
+    kind: z.enum(['walk', 'gym']),
+    minutes: num(1, 600),
+    steps: z.number().int().min(0).max(100_000).default(0),
+    items: z.array(gymItemSchema).max(30).default([]),
+    note: z.string().max(500).default(''),
+  })
+  .refine((w) => w.kind !== 'gym' || w.items.length > 0, { message: 'Add at least one exercise.', path: ['items'] });

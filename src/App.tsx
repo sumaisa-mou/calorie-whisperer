@@ -9,6 +9,7 @@ import Meals from './pages/Meals';
 import MealEdit from './pages/MealEdit';
 import Settings from './pages/Settings';
 import Chat from './pages/Chat';
+import Workout from './pages/Workout';
 
 // Recharts is heavy — only load it when a chart page is opened.
 const WeightPage = lazy(() => import('./pages/Weight'));
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/meals" element={<Meals />} />
           <Route path="/meals/new" element={<MealEdit />} />
           <Route path="/meals/:id" element={<MealEdit />} />
+          <Route path="/workout" element={<Workout />} />
           <Route path="/weight" element={<WeightPage />} />
           <Route path="/charts" element={<Charts />} />
           <Route path="/settings" element={<Settings />} />

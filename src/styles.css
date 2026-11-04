@@ -111,7 +111,7 @@ b { font-weight: 700; }
   border: 1px solid var(--border); border-radius: 26px; box-shadow: var(--shadow), 0 18px 40px -16px rgba(0, 0, 0, .35);
 }
 .tab {
-  flex: 1; height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1; min-width: 0; height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px; font-size: .66rem; color: var(--muted); font-weight: 700; border-radius: 20px;
   transition: color .2s, background .2s, transform .2s;
 }
@@ -232,6 +232,21 @@ label { display: block; font-size: .78rem; font-weight: 700; color: var(--muted)
 .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; line-height: 1.1; }
 .ring-center b { font-size: 1.55rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .ring-center span { font-size: .75rem; opacity: .8; font-weight: 600; }
+
+/* ---- workout */
+.workout-walk { --m: #0ea5e9; }
+.workout-gym { --m: #8b5cf6; }
+.bars { display: flex; align-items: flex-end; gap: 8px; height: 92px; margin-top: 1rem; }
+.bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; font-size: .68rem; font-weight: 700; opacity: .85; }
+.bar-fill { width: 100%; max-width: 34px; border-radius: 8px 8px 4px 4px; background: rgba(255, 255, 255, .35); transition: height .8s cubic-bezier(.2, .8, .2, 1); }
+.bar.today { opacity: 1; }
+.bar.today .bar-fill { background: #fff; box-shadow: 0 0 14px rgba(255, 255, 255, .5); }
+.chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+.chip-btn { background: var(--card); color: var(--text); border: 1.5px solid var(--border); box-shadow: none; padding: 8px 13px; border-radius: 99px; font-size: .85rem; }
+.chip-btn.on { background: var(--accent-soft); color: var(--good); border-color: var(--accent); }
+.estimate { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 14px 16px; border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--card)), color-mix(in srgb, var(--accent-2) 8%, var(--card))); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.estimate-big { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
+.right { text-align: right; }
 
 /* ---- segmented */
 .segmented { display: flex; background: color-mix(in srgb, var(--accent) 8%, var(--bg)); border: 1px solid var(--border); border-radius: 16px; padding: 4px; gap: 2px; }

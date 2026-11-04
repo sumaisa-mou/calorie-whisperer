@@ -132,5 +132,13 @@ test('daily balance rows: grams from calorie surplus/deficit, unlogged days igno
   assert.equal(rows[1].grams, null);
   assert.equal(rows[2].grams, 65);
   const t = balanceTotals(rows);
-  assert.deepEqual(t, { days: 2, needed: 4000, consumed: 4000, diff: 0, grams: 0 });
+  assert.deepEqual(t, { days: 2, needed: 4000, burned: 0, consumed: 4000, diff: 0, grams: 0 });
+});
+
+test('balanceRows counts workout burn in the daily balance', () => {
+  const rows = balanceRows(['2026-11-03'], new Map([['2026-11-03', 2000]]), 2000, new Map([['2026-11-03', 385]]));
+  assert.equal(rows[0].burned, 385);
+  assert.equal(rows[0].diff, -385);
+  assert.equal(rows[0].grams, -50);
+  assert.equal(balanceTotals(rows).burned, 385);
 });

@@ -55,6 +55,19 @@ const SCHEMA = [
      created_at TEXT NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS idx_meals_date ON meals (date, time)`,
+  `CREATE TABLE IF NOT EXISTS workouts (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     date TEXT NOT NULL,
+     time TEXT NOT NULL,
+     kind TEXT NOT NULL,
+     minutes REAL NOT NULL,
+     steps INTEGER NOT NULL DEFAULT 0,
+     items TEXT NOT NULL DEFAULT '[]',
+     note TEXT NOT NULL DEFAULT '',
+     kcal REAL NOT NULL,
+     created_at TEXT NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts (date, time)`,
 ];
 
 /** Returns a ready-to-use client. Schema creation runs once per process. */

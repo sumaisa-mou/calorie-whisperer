@@ -9,6 +9,7 @@ import type {
   Profile,
   WeightEntry,
 } from '../../shared/types';
+import type { Workout, WorkoutInput } from '../../shared/workout';
 
 export const useProfile = () =>
   useQuery({
@@ -101,3 +102,26 @@ export const searchFoods = async (q: string) =>
 
 export const sendChat = (messages: { role: 'user' | 'assistant'; content: string }[], today: string) =>
   api<{ reply: string }>('POST', '/chat', { messages, today });
+
+export const useWorkouts = (from: string, to: string) =>
+  useQuery({
+    queryKey: ['workouts', from, to],
+    queryFn: async () => (await api<{ workouts: Workout[] }>('GET', `/workouts?from=${from}&to=${to}`)).workouts,
+  });
+
+export const useSaveWorkout = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, workout }: { id?: number; workout: WorkoutInput }) =>
+      id ? api('PUT', `/workouts/${id}`, workout) : api('POST', '/workouts', workout),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workouts'] }),
+  });
+};
+
+export const useDeleteWorkout = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api('DELETE', `/workouts/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['workouts'] }),
+  });
+};
