@@ -1,12 +1,14 @@
-import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/useApp';
 import { useDeleteMeal, useMeals, useReviewDay, useReviews } from '../lib/queries';
 import { ErrorBanner, Loading, Progress, Stat } from '../components/ui';
-import { proteinTarget, sumNutrients } from '../../shared/calc';
+import { fatTarget, fiberTarget, proteinTarget, sumNutrients } from '../../shared/calc';
 import { addDays, isDateStr } from '../../shared/dates';
 import { fmtDay, num } from '../lib/format';
 import type { DayReview, Meal, MealReview, MealVerdict } from '../../shared/types';
+
+/** The manual review button appears for yesterday's meals from this local hour onwards. */
+const REVIEW_FROM_HOUR = 6;
 
 const TYPE_LABEL = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' } as const;
 
@@ -73,16 +75,6 @@ export default function Meals() {
   const reviewMut = useReviewDay();
   const review = reviewsQ.data?.[0] ?? null;
 
-  // A finished day that went over target is reviewed automatically, once. Today is reviewed on demand.
-  const autoTried = useRef<string | null>(null);
-  useEffect(() => {
-    if (!target || date >= today || mealsQ.isLoading || reviewsQ.isLoading || reviewMut.isPending) return;
-    if (sumNutrients(mealsQ.data ?? []).calories <= target.target) return;
-    if ((reviewsQ.data?.length ?? 0) > 0 || autoTried.current === date) return;
-    autoTried.current = date;
-    reviewMut.mutate(date);
-  }, [target, date, today, mealsQ.isLoading, mealsQ.data, reviewsQ.isLoading, reviewsQ.data, reviewMut]);
-
   const go = (d: string) => setParams({ date: d }, { replace: true });
 
   if (loading) return <Loading />;
@@ -91,6 +83,7 @@ export default function Meals() {
   const meals = mealsQ.data ?? [];
   const totals = sumNutrients(meals);
   const over = target ? totals.calories - target.target : 0;
+  const canReview = date === addDays(today, -1) && new Date().getHours() >= REVIEW_FROM_HOUR;
   const stale = !!review && meals.some((m) => !tagFor(review, m));
   const saved = review ? review.meals.reduce((s, m) => s + m.savableKcal, 0) : 0;
 
@@ -113,18 +106,32 @@ export default function Meals() {
           <b>{num(totals.calories)}{target && <span className="muted"> / {num(target.target)}</span>} kcal</b>
         </div>
         {target && <div style={{ marginTop: 8 }}><Progress value={totals.calories} max={target.target} /></div>}
-        <div className="grid3 mt">
+        <div className="grid2 mt">
           <Stat macro="p" label="Protein" value={`${num(totals.protein)} g`} sub={latest ? `of ${proteinTarget(latest.kg)} g` : undefined} bar={latest ? totals.protein / proteinTarget(latest.kg) : undefined} />
           <Stat macro="c" label="Carbs" value={`${num(totals.carbs)} g`} />
-          <Stat macro="f" label="Fat" value={`${num(totals.fat)} g`} />
+          <Stat
+            macro="f"
+            label="Fat"
+            value={`${num(totals.fat)} g`}
+            sub={target ? `max ${fatTarget(target.target)} g` : undefined}
+            tone={target && totals.fat > fatTarget(target.target) ? 'bad' : undefined}
+            bar={target ? totals.fat / fatTarget(target.target) : undefined}
+          />
+          <Stat
+            macro="c"
+            label="Fiber"
+            value={`${num(totals.fiber)} g`}
+            sub={target ? `min ${fiberTarget(target.target)} g` : undefined}
+            bar={target ? totals.fiber / fiberTarget(target.target) : undefined}
+          />
         </div>
       </section>
 
-      {over > 0 && meals.length > 0 && (
+      {(over > 0 || canReview) && meals.length > 0 && (
         <section className="card review-card">
           <div className="row between">
-            <h2 style={{ margin: 0 }}>Over target by {num(over)} kcal</h2>
-            {!reviewMut.isPending && (
+            <h2 style={{ margin: 0 }}>{over > 0 ? `Over target by ${num(over)} kcal` : 'Meal review'}</h2>
+            {canReview && !reviewMut.isPending && (
               <button className="secondary small" onClick={() => reviewMut.mutate(date)}>
                 {review ? '↻ Re-run' : '✨ Review with AI'}
               </button>
@@ -139,7 +146,7 @@ export default function Meals() {
               {stale && <p className="muted small">You changed meals after this review — tap Re-run to refresh the tags.</p>}
             </>
           )}
-          {!review && !reviewMut.isPending && !reviewMut.error && <p className="muted small">AI tags each meal as necessary, could be lighter, or avoidable — judged by food quality, not just calories.</p>}
+          {canReview && !review && !reviewMut.isPending && !reviewMut.error && <p className="muted small">AI tags each meal as necessary, could be lighter, or avoidable — judged by food quality, not just calories.</p>}
           <ErrorBanner error={reviewMut.error} />
         </section>
       )}

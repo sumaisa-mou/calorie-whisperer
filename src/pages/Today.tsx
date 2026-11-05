@@ -3,7 +3,7 @@ import { useApp } from '../lib/useApp';
 import { useMeals, useWorkouts } from '../lib/queries';
 import { Loading, ErrorBanner, Ring, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
-import { PROTEIN_G_PER_KG, proteinTarget, sumNutrients, weightChangeKg } from '../../shared/calc';
+import { FAT_KCAL_SHARE, FIBER_MIN_G, PROTEIN_G_PER_KG, fatTarget, fiberTarget, proteinTarget, sumNutrients, weightChangeKg } from '../../shared/calc';
 import { useConsistency } from '../lib/useConsistency';
 import { fmtDay, num, signed } from '../lib/format';
 import { countsForDate, sumWorkouts } from '../../shared/workout';
@@ -33,6 +33,8 @@ export default function Today() {
   const remaining = target ? target.target - consumed : null;
   const balance = target ? consumed - target.tdee : null; // vs maintenance
   const ptarget = latest ? proteinTarget(latest.kg) : null;
+  const ftarget = target ? fatTarget(target.target) : null;
+  const fibtarget = target ? fiberTarget(target.target) : null;
   const burn = sumWorkouts((workoutsQ.data ?? []).filter((w) => countsForDate(w) === today));
 
   return (
@@ -87,7 +89,7 @@ export default function Today() {
         )}
       </section>
 
-      <div className="grid3">
+      <div className="grid2">
         <Stat
           macro="p"
           label="Protein"
@@ -96,8 +98,28 @@ export default function Today() {
           bar={ptarget ? totals.protein / ptarget : undefined}
         />
         <Stat macro="c" label="Carbs" value={`${num(totals.carbs)} g`} />
-        <Stat macro="f" label="Fat" value={`${num(totals.fat)} g`} />
+        <Stat
+          macro="f"
+          label="Fat"
+          value={`${num(totals.fat)} g`}
+          sub={ftarget ? `max ${ftarget} g` : undefined}
+          tone={ftarget && totals.fat > ftarget ? 'bad' : undefined}
+          bar={ftarget ? totals.fat / ftarget : undefined}
+        />
+        <Stat
+          macro="c"
+          label="Fiber"
+          value={`${num(totals.fiber)} g`}
+          sub={fibtarget ? `min ${fibtarget} g` : undefined}
+          bar={fibtarget ? totals.fiber / fibtarget : undefined}
+        />
       </div>
+      {ftarget && fibtarget && (
+        <p className="muted small stat-note">
+          Aggressive-loss targets (adult female): fat ≤ {Math.round(FAT_KCAL_SHARE * 100)}% of calories ({ftarget} g), fiber ≥ {FIBER_MIN_G} g ({fibtarget} g).
+          {totals.fiber < fibtarget ? ` ${num(fibtarget - totals.fiber)} g fiber to go.` : ' Fiber reached ✓'}
+        </p>
+      )}
       {ptarget && latest && (
         <p className="muted small stat-note">
           Protein target = your weight × {PROTEIN_G_PER_KG} g ({latest.kg} kg → {ptarget} g).

@@ -404,7 +404,7 @@ route('POST', '/reviews/:date', async ({ params }) => {
   const meals = await loadMeals(date, date);
   const eaten = sumNutrients(meals).calories;
   const target = calorieTarget(profile, w.kg, date).target;
-  if (meals.length === 0 || eaten <= target) throw new HttpError(400, 'That day is within your calorie target — nothing to review.');
+  if (meals.length === 0) throw new HttpError(400, 'No meals logged that day — nothing to review.');
 
   const result = await reviewDay({ date, targetKcal: target, eatenKcal: eaten, weeklyLossKg: profile.weeklyLossKg, meals });
   const review: DayReview = { date, targetKcal: round(target), eatenKcal: round(eaten), ...result, createdAt: new Date().toISOString() };

@@ -365,3 +365,20 @@ export const PROTEIN_G_PER_KG = 0.8;
 
 /** Daily protein target in grams: body weight × 0.8. */
 export const proteinTarget = (weightKg: number): number => Math.round(weightKg * PROTEIN_G_PER_KG);
+
+// ---------------------------------------------------------------- fat & fiber
+
+/**
+ * Fat ceiling for aggressive weight loss (adult female): 25% of the calorie target.
+ * Stays above the ~20% of kcal floor needed for hormones and vitamin absorption.
+ * At 1,200 kcal this is ≈ 33 g.
+ */
+export const FAT_KCAL_SHARE = 0.25;
+export const fatTarget = (targetKcal: number): number => Math.round((targetKcal * FAT_KCAL_SHARE) / 9);
+
+/**
+ * Fiber minimum for adult women: 25 g/day (IOM: 14 g per 1,000 kcal, never below 25 g
+ * on a low-calorie plan). Higher fiber also keeps you full during a steep deficit.
+ */
+export const FIBER_MIN_G = 25;
+export const fiberTarget = (targetKcal: number): number => Math.max(FIBER_MIN_G, Math.round((targetKcal / 1000) * 14));

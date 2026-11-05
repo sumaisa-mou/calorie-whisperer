@@ -10,7 +10,7 @@ import { round } from '../shared/calc.js';
 import type { Meal, MealReview, MealVerdict } from '../shared/types.js';
 
 export const REVIEW_SYSTEM = `You are a practical, kind nutrition coach inside a personal weight-loss tracker.
-The user went OVER their daily calorie target. Review the meals they logged that day and tag each one, so they can see where the extra calories came from.
+The user usually goes OVER their daily calorie target when asking for this (the message says if the day was actually within target). Review the meals they logged that day and tag each one, so they can see where the extra calories came from.
 
 Give every meal exactly one verdict:
 - "necessary": the body genuinely needed it — a balanced main meal (breakfast, lunch, dinner) or a protein/fibre-rich snack that fills a real gap. Keep it "necessary" even if the meal is big.
@@ -67,7 +67,11 @@ export function buildReviewPrompt(c: ReviewContext): string {
   const over = c.eatenKcal - c.targetKcal;
   const lines = [
     `Date: ${c.date}`,
-    `Daily calorie target: ${round(c.targetKcal)} kcal. Eaten: ${round(c.eatenKcal)} kcal — over by ${round(over)} kcal (${round((over / c.targetKcal) * 100)}%).`,
+    `Daily calorie target: ${round(c.targetKcal)} kcal. Eaten: ${round(c.eatenKcal)} kcal — ${
+      over > 0
+        ? `over by ${round(over)} kcal (${round((over / c.targetKcal) * 100)}%).`
+        : `within target (${round(-over)} kcal under). Still review the quality of each meal; most meals can stay "necessary".`
+    }`,
     c.weeklyLossKg ? `Goal: lose weight, about ${c.weeklyLossKg} kg per week.` : 'Goal: lose weight.',
     '',
     'Meals:',
