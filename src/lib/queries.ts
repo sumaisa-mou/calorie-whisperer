@@ -6,6 +6,7 @@ import type {
   FoodSearchHit,
   Meal,
   MealInput,
+  MeasurementEntry,
   Profile,
   WeightEntry,
 } from '../../shared/types';
@@ -45,6 +46,28 @@ export const useDeleteWeight = () => {
   return useMutation({
     mutationFn: (date: string) => api('DELETE', `/weights/${date}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['weights'] }),
+  });
+};
+
+export const useMeasurements = () =>
+  useQuery({
+    queryKey: ['measurements'],
+    queryFn: async () => (await api<{ measurements: MeasurementEntry[] }>('GET', '/measurements')).measurements,
+  });
+
+export const useSaveMeasurement = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (m: MeasurementEntry) => api('PUT', '/measurements', m),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['measurements'] }),
+  });
+};
+
+export const useDeleteMeasurement = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (date: string) => api('DELETE', `/measurements/${date}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['measurements'] }),
   });
 };
 

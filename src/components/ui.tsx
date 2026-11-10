@@ -121,7 +121,7 @@ const TABS = [
   { to: '/', label: 'Today', icon: icons.today, end: true },
   { to: '/meals', label: 'Meals', icon: icons.meals },
   { to: '/workout', label: 'Workout', icon: icons.workout },
-  { to: '/weight', label: 'Weight', icon: icons.weight },
+  { to: '/weight', label: 'Body', icon: icons.weight },
   { to: '/charts', label: 'Charts', icon: icons.charts },
   { to: '/settings', label: 'Settings', icon: icons.settings },
 ];

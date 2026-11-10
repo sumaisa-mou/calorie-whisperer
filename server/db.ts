@@ -38,6 +38,12 @@ const SCHEMA = [
      kg REAL NOT NULL,
      updated_at TEXT NOT NULL
    )`,
+  `CREATE TABLE IF NOT EXISTS measurements (
+     date TEXT PRIMARY KEY,
+     bust_cm REAL NOT NULL,
+     waist_cm REAL NOT NULL,
+     updated_at TEXT NOT NULL
+   )`,
   `CREATE TABLE IF NOT EXISTS meals (
      id INTEGER PRIMARY KEY AUTOINCREMENT,
      date TEXT NOT NULL,

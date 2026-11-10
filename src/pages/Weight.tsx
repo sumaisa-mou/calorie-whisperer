@@ -5,6 +5,7 @@ import { useDeleteWeight } from '../lib/queries';
 import { ErrorBanner, Loading, Segmented, Stat } from '../components/ui';
 import WeightEntryForm from '../components/WeightEntryForm';
 import WeightChart from '../components/WeightChart';
+import BodyMeasurements from '../components/BodyMeasurements';
 import {
   bmi,
   bmiCategory,
@@ -82,7 +83,7 @@ export default function WeightPage() {
 
   return (
     <div className="stack">
-      <h1>Weight</h1>
+      <h1>Body</h1>
 
       <section className="card">
         <WeightEntryForm today={today} existingKg={latest?.kg} />
@@ -113,6 +114,8 @@ export default function WeightPage() {
       )}
 
       {body}
+
+      <BodyMeasurements today={today} weekStart={weekStart} />
 
       <section className="card">
         <div className="row between" style={{ marginBottom: '.6rem' }}>

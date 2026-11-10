@@ -11,6 +11,7 @@ import {
   rangeQuery,
   textMealSchema,
   weightSchema,
+  measurementSchema,
   workoutSchema,
   settingsSchema,
   planRequestSchema,
@@ -27,7 +28,7 @@ import {
   round,
 } from '../shared/calc.js';
 import { addDays, ageOn, diffDays, isDateStr, weekStartOf } from '../shared/dates.js';
-import type { DailyTotal, DayReview, FoodItem, Meal, Profile, WeightEntry } from '../shared/types.js';
+import type { DailyTotal, DayReview, FoodItem, Meal, MeasurementEntry, Profile, WeightEntry } from '../shared/types.js';
 import { reviewDay } from './review.js';
 import { planSession } from './plan.js';
 import { estimateWorkout, type GymItem, type Workout } from '../shared/workout.js';
@@ -136,6 +137,12 @@ async function loadWeights(from?: string, to?: string): Promise<WeightEntry[]> {
   return res.rows.map((r) => ({ date: String(r.date), kg: Number(r.kg) }));
 }
 
+async function loadMeasurements(): Promise<MeasurementEntry[]> {
+  const c = await db();
+  const res = await c.execute('SELECT date, bust_cm, waist_cm FROM measurements ORDER BY date');
+  return res.rows.map((r) => ({ date: String(r.date), bustCm: Number(r.bust_cm), waistCm: Number(r.waist_cm) }));
+}
+
 function range(q: URLSearchParams) {
   const parsed = rangeQuery.parse({ from: q.get('from'), to: q.get('to') });
   if (parsed.from > parsed.to) throw new HttpError(400, '`from` must be before `to`.');
@@ -216,6 +223,27 @@ route('DELETE', '/weights/:date', async ({ params }) => {
   if (!isDateStr(params[0])) throw new HttpError(400, 'Bad date.');
   const c = await db();
   await c.execute({ sql: 'DELETE FROM weights WHERE date = ?', args: [params[0]] });
+  return { ok: true };
+});
+
+// ---- body measurements (weekly)
+route('GET', '/measurements', async () => ({ measurements: await loadMeasurements() }));
+
+route('PUT', '/measurements', async ({ req }) => {
+  const m = measurementSchema.parse(req.body);
+  const c = await db();
+  await c.execute({
+    sql: `INSERT INTO measurements (date, bust_cm, waist_cm, updated_at) VALUES (?, ?, ?, ?)
+          ON CONFLICT(date) DO UPDATE SET bust_cm = excluded.bust_cm, waist_cm = excluded.waist_cm, updated_at = excluded.updated_at`,
+    args: [m.date, m.bustCm, m.waistCm, new Date().toISOString()],
+  });
+  return { measurement: m };
+});
+
+route('DELETE', '/measurements/:date', async ({ params }) => {
+  if (!isDateStr(params[0])) throw new HttpError(400, 'Bad date.');
+  const c = await db();
+  await c.execute({ sql: 'DELETE FROM measurements WHERE date = ?', args: [params[0]] });
   return { ok: true };
 });
 
@@ -489,7 +517,7 @@ route('GET', '/export', async () => {
   const c = await db();
   const meals = (await c.execute('SELECT * FROM meals ORDER BY date, time, id')).rows.map((r) => rowToMeal(r as unknown as Row));
   const workouts = await loadWorkouts('0000-01-01', '9999-12-31');
-  return { exportedAt: new Date().toISOString(), profile: await getProfile(), weights: await loadWeights(), meals, workouts };
+  return { exportedAt: new Date().toISOString(), profile: await getProfile(), weights: await loadWeights(), measurements: await loadMeasurements(), meals, workouts };
 });
 
 // ------------------------------------------------------------------ dispatcher

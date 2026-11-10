@@ -82,3 +82,10 @@ export interface DayReview {
   meals: MealReview[];
   createdAt: string;
 }
+
+// ---- weekly body measurements (cm)
+export interface MeasurementEntry {
+  date: string;
+  bustCm: number;
+  waistCm: number;
+}

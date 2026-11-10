@@ -28,6 +28,12 @@ export const weightSchema = z.object({
   kg: num(20, 400),
 });
 
+export const measurementSchema = z.object({
+  date: dateStr,
+  bustCm: num(40, 250),
+  waistCm: num(30, 250),
+});
+
 export const foodItemSchema = z.object({
   name: z.string().trim().min(1).max(120),
   grams: num(0, 5000),
