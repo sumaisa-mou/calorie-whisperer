@@ -23,8 +23,8 @@ export default function BodyMeasurements({ today, weekStart }: { today: string; 
     e.preventDefault();
     const b = Number(bust);
     const w = Number(waist);
-    if (!(b >= 40 && b <= 250 && w >= 30 && w <= 250)) return;
-    await save.mutateAsync({ date, bustCm: Math.round(b * 10) / 10, waistCm: Math.round(w * 10) / 10 });
+    if (!(b >= 16 && b <= 100 && w >= 12 && w <= 100)) return;
+    await save.mutateAsync({ date, bustIn: Math.round(b * 100) / 100, waistIn: Math.round(w * 100) / 100 });
     setBust('');
     setWaist('');
   }
@@ -43,26 +43,26 @@ export default function BodyMeasurements({ today, weekStart }: { today: string; 
 
       {s.latest && (
         <div className="grid2">
-          <Stat label="Bust" value={`${s.latest.bustCm} cm`} sub={prev ? `${signed(prev.bustCm)} vs last time` : 'first measurement'} tone={prev ? tone(prev.bustCm) : undefined} />
-          <Stat label="Waist" value={`${s.latest.waistCm} cm`} sub={prev ? `${signed(prev.waistCm)} vs last time` : 'first measurement'} tone={prev ? tone(prev.waistCm) : undefined} />
+          <Stat label="Bust" value={`${s.latest.bustIn} in`} sub={prev ? `${signed(prev.bustIn, 2)} vs last time` : 'first measurement'} tone={prev ? tone(prev.bustIn) : undefined} />
+          <Stat label="Waist" value={`${s.latest.waistIn} in`} sub={prev ? `${signed(prev.waistIn, 2)} vs last time` : 'first measurement'} tone={prev ? tone(prev.waistIn) : undefined} />
         </div>
       )}
       {s.sinceStart && s.first && (
         <p className="muted small" style={{ margin: 0 }}>
-          Since {fmtShort(s.first.date)}: bust <b className={cls(s.sinceStart.bustCm)}>{signed(s.sinceStart.bustCm)} cm</b> · waist{' '}
-          <b className={cls(s.sinceStart.waistCm)}>{signed(s.sinceStart.waistCm)} cm</b>
+          Since {fmtShort(s.first.date)}: bust <b className={cls(s.sinceStart.bustIn)}>{signed(s.sinceStart.bustIn, 2)} in</b> · waist{' '}
+          <b className={cls(s.sinceStart.waistIn)}>{signed(s.sinceStart.waistIn, 2)} in</b>
         </p>
       )}
 
       <form onSubmit={submit} className="stack">
         <div className="grid2">
           <div>
-            <label htmlFor="m-bust">Bust (cm)</label>
-            <input id="m-bust" type="number" inputMode="decimal" step="0.1" min="40" max="250" placeholder={s.latest ? String(s.latest.bustCm) : 'e.g. 92'} value={bust} onChange={(e) => setBust(e.target.value)} />
+            <label htmlFor="m-bust">Bust (in)</label>
+            <input id="m-bust" type="number" inputMode="decimal" step="0.25" min="16" max="100" placeholder={s.latest ? String(s.latest.bustIn) : 'e.g. 36'} value={bust} onChange={(e) => setBust(e.target.value)} />
           </div>
           <div>
-            <label htmlFor="m-waist">Waist (cm)</label>
-            <input id="m-waist" type="number" inputMode="decimal" step="0.1" min="30" max="250" placeholder={s.latest ? String(s.latest.waistCm) : 'e.g. 74'} value={waist} onChange={(e) => setWaist(e.target.value)} />
+            <label htmlFor="m-waist">Waist (in)</label>
+            <input id="m-waist" type="number" inputMode="decimal" step="0.25" min="12" max="100" placeholder={s.latest ? String(s.latest.waistIn) : 'e.g. 29'} value={waist} onChange={(e) => setWaist(e.target.value)} />
           </div>
         </div>
         <div>
@@ -85,8 +85,8 @@ export default function BodyMeasurements({ today, weekStart }: { today: string; 
               {s.rows.slice(0, 12).map((r) => (
                 <tr key={r.date}>
                   <td>{fmtShort(r.date)}</td>
-                  <td className="r"><b>{r.bustCm}</b> {r.change && <span className={`small ${cls(r.change.bustCm)}`}>{signed(r.change.bustCm)}</span>}</td>
-                  <td className="r"><b>{r.waistCm}</b> {r.change && <span className={`small ${cls(r.change.waistCm)}`}>{signed(r.change.waistCm)}</span>}</td>
+                  <td className="r"><b>{r.bustIn}</b> {r.change && <span className={`small ${cls(r.change.bustIn)}`}>{signed(r.change.bustIn, 2)}</span>}</td>
+                  <td className="r"><b>{r.waistIn}</b> {r.change && <span className={`small ${cls(r.change.waistIn)}`}>{signed(r.change.waistIn, 2)}</span>}</td>
                   <td className="r">
                     <button type="button" className="ghost small" aria-label={`Delete measurement on ${r.date}`} disabled={del.isPending} onClick={() => confirm(`Delete measurements from ${r.date}?`) && del.mutate(r.date)}>✕</button>
                   </td>

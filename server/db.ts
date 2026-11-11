@@ -40,8 +40,8 @@ const SCHEMA = [
    )`,
   `CREATE TABLE IF NOT EXISTS measurements (
      date TEXT PRIMARY KEY,
-     bust_cm REAL NOT NULL,
-     waist_cm REAL NOT NULL,
+     bust_in REAL NOT NULL,
+     waist_in REAL NOT NULL,
      updated_at TEXT NOT NULL
    )`,
   `CREATE TABLE IF NOT EXISTS meals (

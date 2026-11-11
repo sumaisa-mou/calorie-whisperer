@@ -2,15 +2,15 @@ import { addDays, weekStartOf, type DateStr } from './dates.js';
 import type { MeasurementEntry } from './types.js';
 
 export interface MeasurementDelta {
-  bustCm: number;
-  waistCm: number;
+  bustIn: number;
+  waistIn: number;
 }
 
-const r1 = (n: number) => Math.round(n * 10) / 10;
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 const diff = (a: MeasurementEntry, b: MeasurementEntry): MeasurementDelta => ({
-  bustCm: r1(a.bustCm - b.bustCm),
-  waistCm: r1(a.waistCm - b.waistCm),
+  bustIn: r2(a.bustIn - b.bustIn),
+  waistIn: r2(a.waistIn - b.waistIn),
 });
 
 export interface MeasurementRow extends MeasurementEntry {

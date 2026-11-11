@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { summarizeMeasurements } from './measurements.js';
 
-const e = (date: string, bustCm: number, waistCm: number) => ({ date, bustCm, waistCm });
+const e = (date: string, bustIn: number, waistIn: number) => ({ date, bustIn, waistIn });
 
 test('empty history is due with no deltas', () => {
   const s = summarizeMeasurements([], '2026-11-10');
@@ -13,11 +13,11 @@ test('empty history is due with no deltas', () => {
 });
 
 test('computes change vs previous and since start, newest first', () => {
-  const s = summarizeMeasurements([e('2026-10-26', 96, 80), e('2026-11-02', 95.5, 78.8), e('2026-11-09', 95, 77.9)], '2026-11-10');
+  const s = summarizeMeasurements([e('2026-10-26', 36, 30), e('2026-11-02', 35.5, 29.75), e('2026-11-09', 35.25, 29.25)], '2026-11-10');
   assert.equal(s.rows[0].date, '2026-11-09');
-  assert.deepEqual(s.rows[0].change, { bustCm: -0.5, waistCm: -0.9 });
+  assert.deepEqual(s.rows[0].change, { bustIn: -0.25, waistIn: -0.5 });
   assert.equal(s.rows[2].change, null);
-  assert.deepEqual(s.sinceStart, { bustCm: -1, waistCm: -2.1 });
+  assert.deepEqual(s.sinceStart, { bustIn: -0.75, waistIn: -0.75 });
 });
 
 test('due depends on the current week (Monday start)', () => {

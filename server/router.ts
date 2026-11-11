@@ -139,8 +139,8 @@ async function loadWeights(from?: string, to?: string): Promise<WeightEntry[]> {
 
 async function loadMeasurements(): Promise<MeasurementEntry[]> {
   const c = await db();
-  const res = await c.execute('SELECT date, bust_cm, waist_cm FROM measurements ORDER BY date');
-  return res.rows.map((r) => ({ date: String(r.date), bustCm: Number(r.bust_cm), waistCm: Number(r.waist_cm) }));
+  const res = await c.execute('SELECT date, bust_in, waist_in FROM measurements ORDER BY date');
+  return res.rows.map((r) => ({ date: String(r.date), bustIn: Number(r.bust_in), waistIn: Number(r.waist_in) }));
 }
 
 function range(q: URLSearchParams) {
@@ -233,9 +233,9 @@ route('PUT', '/measurements', async ({ req }) => {
   const m = measurementSchema.parse(req.body);
   const c = await db();
   await c.execute({
-    sql: `INSERT INTO measurements (date, bust_cm, waist_cm, updated_at) VALUES (?, ?, ?, ?)
-          ON CONFLICT(date) DO UPDATE SET bust_cm = excluded.bust_cm, waist_cm = excluded.waist_cm, updated_at = excluded.updated_at`,
-    args: [m.date, m.bustCm, m.waistCm, new Date().toISOString()],
+    sql: `INSERT INTO measurements (date, bust_in, waist_in, updated_at) VALUES (?, ?, ?, ?)
+          ON CONFLICT(date) DO UPDATE SET bust_in = excluded.bust_in, waist_in = excluded.waist_in, updated_at = excluded.updated_at`,
+    args: [m.date, m.bustIn, m.waistIn, new Date().toISOString()],
   });
   return { measurement: m };
 });

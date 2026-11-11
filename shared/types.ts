@@ -83,9 +83,9 @@ export interface DayReview {
   createdAt: string;
 }
 
-// ---- weekly body measurements (cm)
+// ---- weekly body measurements (inches)
 export interface MeasurementEntry {
   date: string;
-  bustCm: number;
-  waistCm: number;
+  bustIn: number;
+  waistIn: number;
 }

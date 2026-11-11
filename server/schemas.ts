@@ -30,8 +30,8 @@ export const weightSchema = z.object({
 
 export const measurementSchema = z.object({
   date: dateStr,
-  bustCm: num(40, 250),
-  waistCm: num(30, 250),
+  bustIn: num(16, 100),
+  waistIn: num(12, 100),
 });
 
 export const foodItemSchema = z.object({
