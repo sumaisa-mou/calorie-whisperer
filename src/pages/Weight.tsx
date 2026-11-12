@@ -15,7 +15,7 @@ import {
   round,
   weeklyAverages,
 } from '../../shared/calc';
-import { addDays } from '../../shared/dates';
+import { addDays, diffDays } from '../../shared/dates';
 import { fmtDay, fmtMonth, fmtWeek, signed } from '../lib/format';
 
 type Range = 28 | 84 | 0;
@@ -37,6 +37,8 @@ export default function WeightPage() {
 
   const latest = summary?.latest ?? null;
   const first = summary?.first ?? null;
+  // diet day count: the first weigh-in is day 1, today is counted
+  const dietDays = first ? diffDays(today, first.date) + 1 : 0;
 
   // ---- BMI / ideal weight
   let body: React.ReactNode = null;
@@ -95,7 +97,7 @@ export default function WeightPage() {
           <Stat
             label="Since start"
             value={summary.totalChange === null ? '—' : `${signed(summary.totalChange)} kg`}
-            sub={first ? `from ${first.kg} kg` : undefined}
+            sub={first ? `from ${first.kg} kg · ${dietDays} ${dietDays === 1 ? 'day' : 'days'}` : undefined}
             tone={toneFor(summary.totalChange)}
           />
           <Stat
