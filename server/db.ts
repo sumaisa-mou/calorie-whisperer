@@ -86,9 +86,9 @@ const SCHEMA = [
 ];
 
 /**
- * The first release stored measurements in cm (bust_cm / waist_cm). CREATE TABLE IF NOT EXISTS never alters an
- * existing table, so databases created back then must be converted in place: rename the columns and cm → inches.
- * Idempotent — does nothing once the columns are already bust_in / waist_in.
+ * The first release named the columns bust_cm / waist_cm, but the numbers people typed were already inches
+ * (e.g. 42 / 40.5), so only the names change — values are kept exactly as entered. CREATE TABLE IF NOT EXISTS never
+ * alters an existing table, so older databases are renamed in place. Idempotent.
  */
 async function migrateMeasurementsToInches(c: Client): Promise<void> {
   const hasOld = async () =>
@@ -99,7 +99,6 @@ async function migrateMeasurementsToInches(c: Client): Promise<void> {
       [
         'ALTER TABLE measurements RENAME COLUMN bust_cm TO bust_in',
         'ALTER TABLE measurements RENAME COLUMN waist_cm TO waist_in',
-        'UPDATE measurements SET bust_in = ROUND(bust_in / 2.54, 2), waist_in = ROUND(waist_in / 2.54, 2)',
       ],
       'write',
     );
