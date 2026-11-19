@@ -1,11 +1,19 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useDeleteMeasurement, useMeasurements, useSaveMeasurement } from '../lib/queries';
 import { summarizeMeasurements } from '../../shared/measurements';
-import { fmtDay, fmtShort, signed } from '../lib/format';
+import { weekStartOf } from '../../shared/dates';
+import { fmtDay, fmtShort, fmtWeek, num, signed } from '../lib/format';
 import { ErrorBanner, Stat } from './ui';
+
 
 // Smaller is the goal for both measurements.
 const tone = (n: number) => (n === 0 ? undefined : n < 0 ? 'good' : 'bad') as 'good' | 'bad' | undefined;
+const verdict = (waist: number, bust: number) =>
+  waist < 0 && bust >= 0 ? 'Waist is shrinking while bust holds — a good sign of fat loss.'
+  : waist < 0 && bust < 0 ? 'Both are going down — your plan is working.'
+  : waist === 0 && bust === 0 ? 'No change yet — stay consistent.'
+  : waist > 0 ? 'Waist is up compared with the start — worth a look at food and workouts.'
+  : 'Bust is changing while waist is steady.';
 const cls = (n: number) => (n === 0 ? '' : n < 0 ? 'good' : 'bad');
 
 export default function BodyMeasurements({ today, weekStart }: { today: string; weekStart: 0 | 1 }) {
@@ -15,6 +23,7 @@ export default function BodyMeasurements({ today, weekStart }: { today: string; 
   const [date, setDate] = useState(today);
   const [bust, setBust] = useState('');
   const [waist, setWaist] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const s = useMemo(() => summarizeMeasurements(q.data ?? [], today, weekStart), [q.data, today, weekStart]);
   const prev = s.rows[0]?.change ?? null;
@@ -48,10 +57,30 @@ export default function BodyMeasurements({ today, weekStart }: { today: string; 
         </div>
       )}
       {s.sinceStart && s.first && (
-        <p className="muted small" style={{ margin: 0 }}>
-          Since {fmtShort(s.first.date)}: bust <b className={cls(s.sinceStart.bustIn)}>{signed(s.sinceStart.bustIn, 2)} in</b> · waist{' '}
-          <b className={cls(s.sinceStart.waistIn)}>{signed(s.sinceStart.waistIn, 2)} in</b>
-        </p>
+        <div className="stack" style={{ gap: '.4rem' }}>
+          <h3 style={{ margin: 0 }}>Insight</h3>
+          <p style={{ margin: 0 }}>
+            Since {fmtShort(s.first.date)}: bust <b className={cls(s.sinceStart.bustIn)}>{signed(s.sinceStart.bustIn, 2)} in</b> · waist{' '}
+            <b className={cls(s.sinceStart.waistIn)}>{signed(s.sinceStart.waistIn, 2)} in</b>
+          </p>
+          {s.insight ? (
+            <>
+              <p className="small" style={{ margin: 0 }}>
+                Over {num(s.insight.weeks, 1)} weeks that averages bust <b className={cls(s.insight.perWeek.bustIn)}>{signed(s.insight.perWeek.bustIn, 2)}</b> and waist{' '}
+                <b className={cls(s.insight.perWeek.waistIn)}>{signed(s.insight.perWeek.waistIn, 2)}</b> in per week.
+              </p>
+              {s.insight.last4Weeks && (
+                <p className="small" style={{ margin: 0 }}>
+                  Last 4 weeks: bust <b className={cls(s.insight.last4Weeks.bustIn)}>{signed(s.insight.last4Weeks.bustIn, 2)} in</b> · waist{' '}
+                  <b className={cls(s.insight.last4Weeks.waistIn)}>{signed(s.insight.last4Weeks.waistIn, 2)} in</b>
+                </p>
+              )}
+              <p className="muted small" style={{ margin: 0 }}>{verdict(s.sinceStart.waistIn, s.sinceStart.bustIn)}</p>
+            </>
+          ) : (
+            <p className="muted small" style={{ margin: 0 }}>Weekly averages appear once you have two measurements at least a week apart.</p>
+          )}
+        </div>
       )}
 
       <form onSubmit={submit} className="stack">
@@ -80,11 +109,11 @@ export default function BodyMeasurements({ today, weekStart }: { today: string; 
         <>
           <ErrorBanner error={del.error} />
           <table>
-            <thead><tr><th>Date</th><th className="r">Bust</th><th className="r">Waist</th><th /></tr></thead>
+            <thead><tr><th>Week</th><th className="r">Bust</th><th className="r">Waist</th><th /></tr></thead>
             <tbody>
-              {s.rows.slice(0, 12).map((r) => (
+              {(showAll ? s.rows : s.rows.slice(0, 12)).map((r) => (
                 <tr key={r.date}>
-                  <td>{fmtShort(r.date)}</td>
+                  <td>{fmtWeek(weekStartOf(r.date, weekStart))}<div className="muted small">{fmtShort(r.date)}</div></td>
                   <td className="r"><b>{r.bustIn}</b> {r.change && <span className={`small ${cls(r.change.bustIn)}`}>{signed(r.change.bustIn, 2)}</span>}</td>
                   <td className="r"><b>{r.waistIn}</b> {r.change && <span className={`small ${cls(r.change.waistIn)}`}>{signed(r.change.waistIn, 2)}</span>}</td>
                   <td className="r">
@@ -94,6 +123,11 @@ export default function BodyMeasurements({ today, weekStart }: { today: string; 
               ))}
             </tbody>
           </table>
+          {s.rows.length > 12 && (
+            <button type="button" className="secondary small" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? 'Show fewer' : `Show all ${s.rows.length} weeks`}
+            </button>
+          )}
         </>
       )}
     </section>
