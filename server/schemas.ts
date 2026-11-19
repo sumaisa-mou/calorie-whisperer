@@ -78,6 +78,11 @@ export const rangeQuery = z.object({ from: dateStr, to: dateStr });
 
 export const settingsSchema = z.object({ weeklyWorkouts: z.number().int().min(1).max(7) });
 
+export const fastingPlanSchema = z.object({
+  // fasting hours per weekday, index 0 = Sunday … 6 = Saturday; 0 = no goal that day
+  hours: z.array(z.number().int().min(0).max(24)).length(7),
+});
+
 export const planRequestSchema = z.object({ today: dateStr });
 
 export const gymItemSchema = z

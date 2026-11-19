@@ -377,3 +377,15 @@ details > summary { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---- fasting: meal timeline */
+.flow-day { padding-top: 10px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+.flow-day:first-of-type { border-top: 0; padding-top: 0; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+.flow-item { display: inline-flex; align-items: center; gap: 4px; }
+.flow-node { display: inline-flex; flex-direction: column; align-items: center; padding: 6px 10px; border-radius: 14px; background: var(--accent-soft); font-size: .8rem; font-weight: 700; line-height: 1.25; }
+.flow-node small { font-weight: 500; color: var(--muted); }
+.flow-node.next { background: transparent; border: 1px dashed var(--border); }
+.flow-gap { font-size: .75rem; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.flow-gap.good { color: var(--good); }
+.flow-gap.bad { color: var(--danger); }

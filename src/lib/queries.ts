@@ -179,3 +179,17 @@ export const useSaveSettings = () => {
 };
 
 export const planSession = (today: string) => api<{ plan: WorkoutPlan }>('POST', '/workout-plan', { today }).then((r) => r.plan);
+
+export const useFastingPlan = () =>
+  useQuery({
+    queryKey: ['fasting-plan'],
+    queryFn: async () => (await api<{ plan: number[] }>('GET', '/fasting-plan')).plan,
+  });
+
+export const useSaveFastingPlan = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (hours: number[]) => api('PUT', '/fasting-plan', { hours }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['fasting-plan'] }),
+  });
+};

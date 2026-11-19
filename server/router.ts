@@ -14,6 +14,7 @@ import {
   measurementSchema,
   workoutSchema,
   settingsSchema,
+  fastingPlanSchema,
   planRequestSchema,
 } from './schemas.js';
 import { analyzeImage, analyzeText, searchFoods } from './nutrition.js';
@@ -29,6 +30,7 @@ import {
 } from '../shared/calc.js';
 import { addDays, ageOn, diffDays, isDateStr, weekStartOf } from '../shared/dates.js';
 import type { DailyTotal, DayReview, FoodItem, Meal, MeasurementEntry, Profile, WeightEntry } from '../shared/types.js';
+import { NO_PLAN } from '../shared/fasting.js';
 import { reviewDay } from './review.js';
 import { planSession } from './plan.js';
 import { estimateWorkout, type GymItem, type Workout } from '../shared/workout.js';
@@ -379,6 +381,30 @@ route('PUT', '/settings', async ({ req }) => {
     args: [String(s.weeklyWorkouts)],
   });
   return { settings: s };
+});
+
+// ---- fasting plan (goal hours per weekday)
+route('GET', '/fasting-plan', async () => {
+  const c = await db();
+  const r = await c.execute({ sql: "SELECT value FROM settings WHERE key = 'fastingPlan'", args: [] });
+  let hours = NO_PLAN;
+  try {
+    const parsed = fastingPlanSchema.safeParse({ hours: r.rows[0] ? JSON.parse(String(r.rows[0].value)) : NO_PLAN });
+    if (parsed.success) hours = parsed.data.hours;
+  } catch {
+    /* corrupt value — fall back to no plan */
+  }
+  return { plan: hours };
+});
+
+route('PUT', '/fasting-plan', async ({ req }) => {
+  const { hours } = fastingPlanSchema.parse(req.body);
+  const c = await db();
+  await c.execute({
+    sql: `INSERT INTO settings (key, value) VALUES ('fastingPlan', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    args: [JSON.stringify(hours)],
+  });
+  return { plan: hours };
 });
 
 // ---- AI session plan

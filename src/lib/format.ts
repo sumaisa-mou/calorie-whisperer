@@ -26,3 +26,9 @@ export const signed = (n: number, dp = 1) => {
 
 export const num = (n: number, dp = 0) =>
   n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+
+/** 13.5 → "13h 30m" */
+export const fmtHours = (h: number) => {
+  const total = Math.round(h * 60);
+  return `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, '0')}m`;
+};
